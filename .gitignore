@@ -1,0 +1,18 @@
+# colcon のビルド生成物
+build/
+install/
+log/
+
+# Python のキャッシュ
+__pycache__/
+*.pyc
+
+# エディタ・OS のゴミ
+*.swp
+*~
+.vscode/
+.idea/
+.DS_Store
+
+# その他
+*.pdf

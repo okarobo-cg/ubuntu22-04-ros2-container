@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>robocon2027_field</name>
+  <version>0.1.0</version>
+  <description>ABU Robocon 2027 のフィールド (GLB から自動生成した Gazebo Fortress ワールド) と diffbot 起動用 launch</description>
+  <maintainer email="mhieda.robotics@gmail.com">mhieda</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>diffbot_sim</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -1,0 +1,43 @@
+# =============================================================
+#  diffbot_sim 用 docker compose 設定
+#
+#  このファイルは <プロジェクト>/src/docker/ に置く前提。
+#  ホスト側のディレクトリ構成:
+#    <プロジェクト>/
+#      ├── src/      -> /ros2_ws/src    (ROS 2 パッケージ, このファイルもここ)
+#      ├── config/   -> /ros2_ws/config
+#      ├── models/   -> /ros2_ws/models (自作 Gazebo モデル置き場)
+#      └── worlds/   -> /ros2_ws/worlds (自作ワールド置き場)
+#
+#  使い方 (ホストで, このディレクトリに移動して):
+#    xhost +local:            # GUI 表示を許可 (ホスト再起動ごとに 1 回)
+#    docker compose build     # イメージ作成 (初回のみ / Dockerfile 変更時)
+#    docker compose up -d     # コンテナ起動 (バックグラウンド)
+#    docker compose exec ros2 bash   # コンテナに入る (端末を増やすときも同じ)
+#    docker compose down      # コンテナ停止・削除
+# =============================================================
+services:
+  ros2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: diffbot_sim:humble
+    container_name: diffbot_sim
+    network_mode: host      # ROS 2 の通信をホストと共有
+    ipc: host               # 共有メモリ (DDS / GUI の安定化)
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw   # GUI (X11)
+      - ../../src:/ros2_ws/src
+      - ../../config:/ros2_ws/config
+      - ../../models:/ros2_ws/models
+      - ../../worlds:/ros2_ws/worlds
+    # GPU (Intel / AMD) を使って描画を高速化する。
+    # /dev/dri が無い PC ではこの 2 行をコメントアウトする (CPU 描画になるが動作はする)。
+    devices:
+      - /dev/dri:/dev/dri
+    command: bash

@@ -1,0 +1,8 @@
+# glb_to_sdf.py が自動生成。スタートゾーン (700x700 mm) の中心 [m]
+# zone 1 = フィールド中央寄り, zone 2 = 角
+red:
+  zone1: {x: -4.3500, y: -5.1500, size_x: 0.700, size_y: 0.700}
+  zone2: {x: -5.1500, y: -5.1500, size_x: 0.700, size_y: 0.700}
+blue:
+  zone1: {x: 4.3500, y: -5.1500, size_x: 0.700, size_y: 0.700}
+  zone2: {x: 5.1500, y: -5.1500, size_x: 0.700, size_y: 0.700}
