@@ -9,7 +9,7 @@ Docker に慣れていない人向けに、この環境を動かすのに必要�
 | 言葉 | たとえ | この環境では |
 |---|---|---|
 | **イメージ (image)** | OS + ソフトをまとめた「設計図 / 型」 | `diffbot_sim:humble` (Ubuntu 22.04 + ROS 2 Humble + Gazebo Fortress) |
-| **コンテナ (container)** | イメージから作った「実物」。中で作業する | `diffbot_sim` |
+| **コンテナ (container)** | イメージから作った「実物」。中で作業する | `ubuntu_22_04_ros2` |
 | **ボリューム (マウント)** | ホストのフォルダをコンテナに「共有」する | `src/ config/ models/ worlds/` |
 
 ### ⚠️ 一番大事なこと: コンテナの中の変更は消える
@@ -112,7 +112,7 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 ```bash
 docker build -t diffbot_sim:humble <プロジェクト>/src/docker
-docker run -it --name diffbot_sim --net=host --ipc=host \
+docker run -it --name ubuntu_22_04_ros2 --net=host --ipc=host \
   -e DISPLAY=$DISPLAY -e QT_X11_NO_MITSHM=1 \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
   -v <プロジェクト>/src:/ros2_ws/src \
@@ -121,7 +121,7 @@ docker run -it --name diffbot_sim --net=host --ipc=host \
   -v <プロジェクト>/worlds:/ros2_ws/worlds \
   --device /dev/dri \
   diffbot_sim:humble bash
-# 2 枚目以降の端末: docker exec -it diffbot_sim bash
+# 2 枚目以降の端末: docker exec -it ubuntu_22_04_ros2 bash
 ```
 
 ---
@@ -260,7 +260,7 @@ Get-Help .\start.ps1 -Detailed     # オプションの説明
 | 共有メモリ | `ipc: host` | `shm_size: 2gb` |
 | マウント | `src config models worlds` | 同じ |
 
-イメージ (`diffbot_sim:humble`) とコンテナ名 (`diffbot_sim`) は Linux 版と共通です。
+イメージ (`diffbot_sim:humble`) とコンテナ名 (`ubuntu_22_04_ros2`) は Linux 版と共通です。
 
 ### 6-6. うまくいかないとき
 

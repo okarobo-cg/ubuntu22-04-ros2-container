@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: diffbot_sim:humble
-    container_name: diffbot_sim
+    container_name: ubuntu_22_04_ros2
     network_mode: host      # ROS 2 の通信をホストと共有
     ipc: host               # 共有メモリ (DDS / GUI の安定化)
     stdin_open: true

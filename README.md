@@ -11,15 +11,93 @@ ROS 2 Humble と Gazebo Fortress で動かす、学習用のシンプルな差�
 
 > 関連ドキュメント
 > - [docs/DOCKER_GUIDE.md](docs/DOCKER_GUIDE.md) … Docker の基本と、この環境の起動方法 (Docker が初めての人はここから)
-> - **Windows の人**: `src\docker\windows\start.bat` をダブルクリック (詳細は [DOCKER_GUIDE の Windows 編](docs/DOCKER_GUIDE.md#6-windows-で動かす))
 > - [docs/WORKLOG.md](docs/WORKLOG.md) … この環境を作ったときの作業記録 (編集内容とコマンド)
 > - [robocon2027_field/README.md](robocon2027_field/README.md) … ABU Robocon 2027 フィールドで動かす
 
 ---
 
-## 1. クイックスタート
+## 1. Docker コンテナの立ち上げ
 
-コンテナの中で次を実行します (コンテナの入り方は [DOCKER_GUIDE](docs/DOCKER_GUIDE.md) を参照)。
+Docker (Ubuntu は Docker Engine、Windows は Docker Desktop) は入っている前提です。
+コンテナ名は **`ubuntu_22_04_ros2`**、イメージ名は `diffbot_sim:humble` です。
+
+### フォルダ構成 (Ubuntu / Windows 共通)
+
+```
+<プロジェクト>/
+├── src/        ← このリポジトリ (clone 先のフォルダ名は必ず src にする)
+├── config/     ← 空で OK
+├── models/     ← 空で OK (自作 Gazebo モデル置き場)
+└── worlds/     ← 空で OK (自作ワールド置き場)
+```
+
+`config/ models/ worlds/` は無ければ作っておきます (Windows の `start.bat` は自動で作ります)。
+コンテナ内では `/ros2_ws/src` などにマウントされ、ここに置いたファイルはコンテナを消しても残ります。
+
+### ホストが Ubuntu の場合
+
+```bash
+cd <プロジェクト>
+mkdir -p config models worlds
+
+cd src/docker
+xhost +local:                     # GUI 表示の許可 (PC を再起動するたびに 1 回)
+docker compose build              # イメージ作成 (初回のみ・Dockerfile を変えたとき。10 分ほど)
+docker compose up -d              # コンテナ起動
+docker compose exec ros2 bash     # コンテナに入る (端末を増やすときも同じコマンド)
+```
+
+| 操作 | コマンド (`src/docker` で実行) |
+|---|---|
+| 端末を増やす | `docker compose exec ros2 bash` または `docker exec -it ubuntu_22_04_ros2 bash` |
+| 停止 (中身は残る) | `docker compose stop` |
+| 再開 | `docker compose start` |
+| 削除 (マウント外の変更は消える) | `docker compose down` |
+
+GPU (`/dev/dri`) が無い PC では、`docker-compose.yml` の `devices:` の 2 行をコメントアウトしてください (CPU 描画で動きます)。
+
+### ホストが Windows の場合
+
+WSL2 (Windows 11 推奨) と Docker Desktop を使います。Docker Desktop を起動し、**Engine running** になってから操作します。
+GUI は WSLg で表示されるので `xhost` は不要です。
+
+**簡単な方法: スクリプトをダブルクリック** (`src\docker\windows\`)
+
+| ファイル | 内容 |
+|---|---|
+| `check_env.bat` | 環境チェック (最初に 1 回。`[NG]` が無いこと) |
+| `start.bat` | ビルド → コンテナ起動 → `colcon build` → Robocon 2027 フィールド (赤) を起動 |
+| `teleop.bat` | キーボード操縦 (start の後に別ウィンドウで) |
+| `shell.bat` | コンテナの bash を開く |
+| `stop.bat` | コンテナ停止 (`stop.bat -Remove` で削除) |
+
+`start.bat -Launch diffbot` (練習用ワールド)、`start.bat -Launch shell` (bash だけ開く)、`start.bat -Team blue` などのオプションがあります。詳細は [DOCKER_GUIDE の 6 章](docs/DOCKER_GUIDE.md#6-windows-で動かす)。
+
+**手動で立ち上げる場合** (PowerShell)
+
+```powershell
+cd <プロジェクト>
+mkdir config, models, worlds -ErrorAction SilentlyContinue
+
+cd src\docker
+docker compose -f docker-compose.windows.yml build            # 初回のみ
+docker compose -f docker-compose.windows.yml up -d
+docker compose -f docker-compose.windows.yml exec ros2 bash   # 端末を増やすときも同じ
+# 停止 / 再開 / 削除
+docker compose -f docker-compose.windows.yml stop
+docker compose -f docker-compose.windows.yml start
+docker compose -f docker-compose.windows.yml down
+```
+
+> ⚠️ Windows 用の設定・スクリプトは Windows 実機ではまだ動作確認していません。
+
+コンテナに入ったら、次の「2. クイックスタート」に進みます。
+
+---
+
+## 2. クイックスタート
+
+コンテナの中で次を実行します (コンテナの入り方は「1. Docker コンテナの立ち上げ」を参照)。
 
 ```bash
 # (1) ビルド (初回・ファイルを追加したとき・コンテナを作り直したとき)
@@ -31,7 +109,7 @@ source install/setup.bash
 ros2 launch diffbot_sim sim.launch.py
 ```
 
-別の端末 (ホストで `docker compose exec ros2 bash` などでもう 1 つコンテナに入る) で操縦します。
+別の端末 (ホストで `docker exec -it ubuntu_22_04_ros2 bash` などでもう 1 つコンテナに入る。Windows は `teleop.bat`) で操縦します。
 
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
@@ -68,7 +146,7 @@ ros2 launch robocon2027_field robocon2027.launch.py   # 赤チームのスター
 
 ---
 
-## 2. ROS 2 トピック一覧
+## 3. ROS 2 トピック一覧
 
 | トピック | 型 | 向き | 内容 |
 |---|---|---|---|
@@ -101,7 +179,7 @@ ign topic -l                          # Gazebo 側のトピック一覧
 
 ---
 
-## 3. ロボットの仕様
+## 4. ロボットの仕様
 
 ```
 上から見た図 (x: 前 → / y: 左 ↑)
@@ -160,7 +238,7 @@ odom
 
 ---
 
-## 4. ファイル構成
+## 5. ファイル構成
 
 ```
 src/
@@ -215,7 +293,7 @@ src/
 
 ---
 
-## 5. トラブルシューティング
+## 6. トラブルシューティング
 
 | 症状 | 対処 |
 |---|---|

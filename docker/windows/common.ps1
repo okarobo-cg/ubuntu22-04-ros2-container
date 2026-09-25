@@ -13,7 +13,7 @@ $Script:ProjectRoot = Split-Path -Parent $Script:SrcDir                # <プロ
 $Script:ComposeFile = Join-Path $Script:DockerDir 'docker-compose.windows.yml'
 $Script:GpuFile     = Join-Path $Script:DockerDir 'docker-compose.windows-gpu.yml'
 $Script:ImageName   = 'diffbot_sim:humble'
-$Script:Container   = 'diffbot_sim'
+$Script:Container   = 'ubuntu_22_04_ros2'
 
 function Write-Step([string]$msg) {
     Write-Host ''

@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: diffbot_sim:humble
-    container_name: diffbot_sim
+    container_name: ubuntu_22_04_ros2
     shm_size: 2gb           # 共有メモリ (DDS / Gazebo の安定化)
     stdin_open: true
     tty: true

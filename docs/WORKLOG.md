@@ -416,6 +416,32 @@ PATH=./mock:$PATH ./pwsh -File start.ps1 -Team blue -NoRviz
 
 ---
 
+## 12. コンテナ名の変更と README への起動手順の追記
+
+### 12-1. コンテナ名を `ubuntu_22_04_ros2` に変更
+
+| ファイル | 変更 |
+|---|---|
+| `docker/docker-compose.yml`, `docker/docker-compose.windows.yml` | `container_name: diffbot_sim` → `container_name: ubuntu_22_04_ros2` |
+| `docker/windows/common.ps1` | `$Script:Container = 'ubuntu_22_04_ros2'` (UTF-8 BOM + CRLF を維持) |
+| `docs/DOCKER_GUIDE.md` | コンテナ名の記載、`docker run --name` / `docker exec -it` の例 |
+
+イメージ名 (`diffbot_sim:humble`)、compose のサービス名 (`ros2`)、パッケージ名 (`diffbot_sim`) は変更していない。
+
+```bash
+sed -i 's/container_name: diffbot_sim/container_name: ubuntu_22_04_ros2/' \
+    docker/docker-compose.yml docker/docker-compose.windows.yml
+```
+
+### 12-2. README に Docker の立ち上げ手順 (Ubuntu / Windows) を追加
+
+`src/README.md` に「1. Docker コンテナの立ち上げ」を追加し、既存の章を 1 つずつ繰り下げた。
+内容: 共通のフォルダ構成、Ubuntu ホストの手順 (`xhost` → `docker compose build / up -d / exec`)、
+Windows ホストの手順 (`.bat` をダブルクリックする方法と、`docker compose -f docker-compose.windows.yml` を手で打つ方法)。
+Docker 自体のインストール手順は省略 (入っている前提)。
+
+---
+
 ## 最終的なファイル構成
 
 ```
