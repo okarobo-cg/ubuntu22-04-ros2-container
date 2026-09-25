@@ -11,6 +11,7 @@ ROS 2 Humble と Gazebo Fortress で動かす、学習用のシンプルな差�
 
 > 関連ドキュメント
 > - [docs/DOCKER_GUIDE.md](docs/DOCKER_GUIDE.md) … Docker の基本と、この環境の起動方法 (Docker が初めての人はここから)
+> - **Windows の人**: `src\docker\windows\start.bat` をダブルクリック (詳細は [DOCKER_GUIDE の Windows 編](docs/DOCKER_GUIDE.md#6-windows-で動かす))
 > - [docs/WORKLOG.md](docs/WORKLOG.md) … この環境を作ったときの作業記録 (編集内容とコマンド)
 > - [robocon2027_field/README.md](robocon2027_field/README.md) … ABU Robocon 2027 フィールドで動かす
 
@@ -155,7 +156,7 @@ odom
 - 10 m × 10 m の壁で囲まれたアリーナ
 - 色付きの箱・円柱 (LiDAR・カメラの確認用)
 - 床に黒いラインの長方形ループ (x: -1.5 ～ 2.5 m, y: 0 ～ 2 m)。ロボットはライン上 (原点) からスタートするので、下向きカメラでライントレースの練習ができます。
-- 下向きカメラに車体の影が映らないよう、影は無効にしています。
+- 影は無効にしています。有効にすると画面が白飛びし、下向きカメラに車体の影が映り込んで、色検知やライントレースがしにくくなるためです。
 
 ---
 
@@ -169,8 +170,17 @@ src/
 │   └── WORKLOG.md               … 作業記録
 ├── docker/
 │   ├── Dockerfile               … 環境を再現するイメージ定義
-│   ├── docker-compose.yml       … コンテナ起動設定 (GUI・マウント・GPU)
-│   └── entrypoint.sh
+│   ├── docker-compose.yml       … コンテナ起動設定 (Linux 用: GUI・マウント・GPU)
+│   ├── docker-compose.windows.yml     … Windows (Docker Desktop + WSLg) 用
+│   ├── docker-compose.windows-gpu.yml … Windows で GPU を使う追加設定 (試験的)
+│   ├── entrypoint.sh
+│   └── windows/                 … Windows 用起動スクリプト
+│       ├── start.bat / start.ps1       … ビルド・起動・シミュレーション開始
+│       ├── teleop.bat / teleop.ps1     … キーボード操縦
+│       ├── shell.bat / shell.ps1       … コンテナの bash を開く
+│       ├── stop.bat / stop.ps1         … 停止 (-Remove で削除)
+│       ├── check_env.bat / check_env.ps1 … 環境チェック
+│       └── common.ps1                  … 共通処理
 └── diffbot_sim/                 … ROS 2 パッケージ本体
     ├── package.xml / CMakeLists.txt
     ├── urdf/

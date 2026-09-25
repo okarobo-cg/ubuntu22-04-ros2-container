@@ -1,0 +1,43 @@
+# =============================================================
+#  diffbot_sim 用 docker compose 設定 (Windows + Docker Desktop 用)
+#
+#  通常は windows\start.bat (start.ps1) から使う。直接使う場合 (PowerShell, このフォルダで):
+#    docker compose -f docker-compose.windows.yml up -d
+#    docker compose -f docker-compose.windows.yml exec ros2 bash
+#
+#  GUI 表示: 既定は WSLg (Windows 11 / WSL2 に標準搭載) を使う。
+#    Docker Desktop (WSL2 バックエンド) の VM 内の /run/desktop/mnt/host/wslg に
+#    WSLg の X11 / Wayland ソケットがあるので、それをコンテナにマウントする。
+#    VcXsrv を使う場合は start.ps1 -Display vcxsrv (DISPLAY=host.docker.internal:0.0 になる)
+#
+#  Linux 用の docker-compose.yml との違い:
+#    - network_mode: host を使わない (Windows では不要。ROS 2 の通信はコンテナ内で完結)
+#    - /dev/dri を渡さない (Windows には無い。GPU は docker-compose.windows-gpu.yml)
+# =============================================================
+services:
+  ros2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: diffbot_sim:humble
+    container_name: diffbot_sim
+    shm_size: 2gb           # 共有メモリ (DDS / Gazebo の安定化)
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DIFFBOT_DISPLAY:-:0}
+      - WAYLAND_DISPLAY=wayland-0
+      - XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir
+      - PULSE_SERVER=/mnt/wslg/PulseServer
+      - QT_X11_NO_MITSHM=1
+      - LIBGL_ALWAYS_INDIRECT=0
+    volumes:
+      # WSLg (GUI)
+      - /run/desktop/mnt/host/wslg/.X11-unix:/tmp/.X11-unix
+      - /run/desktop/mnt/host/wslg:/mnt/wslg
+      # ソースなど (Linux 版と同じ)
+      - ../../src:/ros2_ws/src
+      - ../../config:/ros2_ws/config
+      - ../../models:/ros2_ws/models
+      - ../../worlds:/ros2_ws/worlds
+    command: bash

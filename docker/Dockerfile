@@ -27,7 +27,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /ros2_ws
 
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh \
+# Windows で clone すると改行が CRLF になり "bash\r: No such file" で起動しなくなるので LF に直す
+RUN sed -i 's/\r$//' /entrypoint.sh \
+ && chmod +x /entrypoint.sh \
  && echo 'source /opt/ros/humble/setup.bash' >> /root/.bashrc \
  && echo 'if [ -f /ros2_ws/install/setup.bash ]; then source /ros2_ws/install/setup.bash; fi' >> /root/.bashrc
 

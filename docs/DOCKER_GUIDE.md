@@ -179,3 +179,99 @@ export ROS_DOMAIN_ID=10   # 0〜101 の範囲で人ごとに変える (~/.bashrc
 ### Git で配布するとき
 
 `build/ install/ log/` はビルドで生成されるので Git に含めません (`.gitignore` に書く)。
+
+---
+
+## 6. Windows で動かす
+
+Windows では **Docker Desktop** を使い、GUI (Gazebo, RViz) は **WSLg** (Windows 11 の WSL2 に標準で入っている GUI 機能) で表示します。
+起動は `src\docker\windows\` にあるスクリプトで行います。
+
+> ⚠️ Windows 用スクリプトは作成者の環境 (Linux) で「構文チェック」と「docker に渡すコマンドの確認」まではしましたが、**Windows 実機ではまだ試していません**。動かなかったら `check_env.bat` の結果と一緒に報告してください。
+
+### 6-1. 準備 (初回のみ)
+
+| 必要なもの | 入れ方 |
+|---|---|
+| Windows 11 (推奨) または Windows 10 21H2 以降 | Windows 10 の場合は Store 版 WSL が必要 (`wsl --update`) |
+| WSL2 | 管理者 PowerShell で `wsl --install` → 再起動。入っていれば `wsl --update` |
+| Docker Desktop | https://docs.docker.com/desktop/setup/install/windows-install/ から入れる。設定の「Use the WSL 2 based engine」を ON (既定で ON) |
+| Git for Windows (clone する場合) | https://git-scm.com/download/win |
+| 空き容量 | 10 GB 以上 (イメージが約 4 GB) |
+
+フォルダ構成は Linux と同じです (`src` の中に `docker\windows\` がある)。
+
+```powershell
+# 例: C:\work\diffbot に置く
+mkdir C:\work\diffbot
+cd C:\work\diffbot
+git clone <リポジトリの URL> src
+```
+
+> `.gitattributes` で改行コードを指定してあるので、Windows で clone しても Linux 用ファイル (`.sh`, `.py` など) は LF のままになります。
+
+### 6-2. 起動
+
+1. Docker Desktop を起動し、左下が **Engine running** になるまで待つ
+2. エクスプローラーで `src\docker\windows\` を開き、**`check_env.bat`** をダブルクリック → `[NG]` が無いことを確認
+3. **`start.bat`** をダブルクリック
+   - 初回はイメージのビルドで 10 分ほどかかる
+   - Gazebo と RViz2 のウィンドウが開き、ABU Robocon 2027 フィールドの赤スタートゾーンにロボットが出る
+4. 操縦するときは **`teleop.bat`** をダブルクリックし、そのウィンドウを選んだ状態で `i` (前進) / `,` (後退) / `j` `l` (旋回) / `k` (停止)
+5. 終わるときは `start.bat` の画面で `Ctrl+C`、その後 **`stop.bat`**
+
+### 6-3. スクリプト一覧
+
+| スクリプト | 内容 |
+|---|---|
+| `start.bat` / `start.ps1` | Docker 確認 → (必要なら) ビルド → コンテナ起動 → `colcon build` → シミュレーション起動 |
+| `teleop.bat` / `teleop.ps1` | キーボード操縦 |
+| `shell.bat` / `shell.ps1` | 起動中のコンテナで bash を開く (ROS 2 コマンドを打つ端末を増やす) |
+| `stop.bat` / `stop.ps1` | コンテナ停止。`-Remove` を付けると削除 |
+| `check_env.bat` / `check_env.ps1` | Windows / WSL / Docker / WSLg / GPU の状態を確認 |
+
+`.bat` はダブルクリック用の入口で、中で同名の `.ps1` を呼んでいます
+(PowerShell の実行ポリシーで `.ps1` が直接実行できない PC でも動くようにするため)。
+
+### 6-4. start のオプション
+
+PowerShell で `src\docker\windows` に移動して実行します (`.bat` にも同じオプションを付けられます)。
+
+```powershell
+.\start.bat                        # Robocon 2027 フィールド・赤チーム (既定)
+.\start.bat -Team blue             # 青チーム
+.\start.bat -Launch diffbot        # 練習用ワールド
+.\start.bat -Launch shell          # シミュレーションは起動せず bash だけ開く
+.\start.bat -NoRviz                # RViz を出さない (軽くなる)
+.\start.bat -Headless              # Gazebo の画面を出さない (GUI が出ないときの切り分け)
+.\start.bat -Display vcxsrv        # WSLg ではなく VcXsrv で表示
+.\start.bat -Gpu                   # GPU 描画を使う (試験的)
+.\start.bat -Build                 # イメージを作り直す (Dockerfile を変えたとき)
+Get-Help .\start.ps1 -Detailed     # オプションの説明
+```
+
+### 6-5. 仕組み (Linux 版との違い)
+
+| 項目 | Linux (`docker-compose.yml`) | Windows (`docker-compose.windows.yml`) |
+|---|---|---|
+| GUI | ホストの X11 (`/tmp/.X11-unix`, `xhost +local:`) | WSLg。Docker Desktop の VM 内の `/run/desktop/mnt/host/wslg` をマウント |
+| GPU | `/dev/dri` (Intel/AMD) | `docker-compose.windows-gpu.yml` で `/dev/dxg` + `/usr/lib/wsl` (D3D12 経由, 試験的) |
+| ネットワーク | `network_mode: host` | 使わない (ROS 2 の通信はコンテナ内で完結) |
+| 共有メモリ | `ipc: host` | `shm_size: 2gb` |
+| マウント | `src config models worlds` | 同じ |
+
+イメージ (`diffbot_sim:humble`) とコンテナ名 (`diffbot_sim`) は Linux 版と共通です。
+
+### 6-6. うまくいかないとき
+
+| 症状 | 対処 |
+|---|---|
+| `Docker Desktop が起動していません` | Docker Desktop を起動し、Engine running になってから再実行 |
+| ビルドで `no matching manifest` / Windows コンテナの話が出る | タスクトレイの Docker アイコン → **Switch to Linux containers** |
+| コンテナがすぐ終了し `exec /entrypoint.sh: no such file or directory` | `entrypoint.sh` が CRLF。Dockerfile で自動変換しているので `start.bat -Build` で作り直す |
+| Gazebo / RViz の画面が出ない (`could not connect to display`) | `wsl --update` して PC を再起動 → `check_env.bat` で「WSLg の X11 ソケットが見えます」を確認。ダメなら VcXsrv を入れて XLaunch を「Disable access control」にチェックして起動し、`start.bat -Display vcxsrv` |
+| 画面は出るが真っ黒・すぐ落ちる (`-Gpu` 使用時) | `-Gpu` を外す (CPU 描画) |
+| 動作がとても重い | `-NoRviz`、または `-Gpu` を試す。ノート PC は電源につなぐ |
+| `.ps1` を直接実行すると「スクリプトの実行が無効」 | `.bat` の方を使う。または `powershell -ExecutionPolicy Bypass -File .\start.ps1` |
+| 日本語が文字化けする | Windows Terminal か PowerShell 7 を使う (スクリプトは UTF-8 BOM 付きで保存済み) |
+| 前回の Gazebo が残って動作がおかしい | `start.bat` は起動前に残った Gazebo を自動で止める。それでもダメなら `stop.bat` → `start.bat` |

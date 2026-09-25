@@ -1,0 +1,18 @@
+# =============================================================
+#  Windows で GPU 描画を使うための追加設定 (試験的)
+#  docker-compose.windows.yml に重ねて使う: start.ps1 -Gpu
+#
+#  WSL2 の GPU (/dev/dxg) と D3D12 ドライバ (/usr/lib/wsl) をコンテナに渡し、
+#  Mesa の d3d12 ドライバで OpenGL を GPU 実行する。
+#  GPU が複数ある PC では MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA などを environment に追加すると選べる。
+#  うまく動かない (画面が黒い・Gazebo が落ちる) ときは -Gpu なし (CPU 描画) で使う。
+# =============================================================
+services:
+  ros2:
+    devices:
+      - /dev/dxg:/dev/dxg
+    volumes:
+      - /usr/lib/wsl:/usr/lib/wsl
+    environment:
+      - LD_LIBRARY_PATH=/usr/lib/wsl/lib
+      - GALLIUM_DRIVER=d3d12

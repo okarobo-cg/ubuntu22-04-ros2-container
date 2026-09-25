@@ -1,0 +1,22 @@
+# 改行コードの指定 (Windows で clone しても Linux 用ファイルが壊れないようにする)
+*               text=auto
+# コンテナ内 (Linux) で使うファイルは常に LF
+*.sh            text eol=lf
+*.py            text eol=lf
+*.xacro         text eol=lf
+*.urdf          text eol=lf
+*.sdf           text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+*.rviz          text eol=lf
+*.xml           text eol=lf
+*.txt           text eol=lf
+Dockerfile      text eol=lf
+COLCON_IGNORE   text eol=lf
+# Windows で使うスクリプトは常に CRLF
+*.ps1           text eol=crlf
+*.bat           text eol=crlf
+# バイナリ
+*.glb           binary
+*.png           binary
+*.pdf           binary

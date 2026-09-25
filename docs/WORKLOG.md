@@ -316,13 +316,117 @@ ros2 launch robocon2027_field robocon2027.launch.py gui:=false rviz:=false
 
 ---
 
+## 11. 影の有効化と Windows 用起動スクリプト
+
+### 11-1. 影を有効にする
+
+手順 5 で無効にした影を、依頼により両方のワールドで有効に戻した。
+
+| ファイル | 変更 |
+|---|---|
+| `diffbot_sim/worlds/diffbot_world.sdf` | `<shadows>true</shadows>`、太陽の `<cast_shadows>true</cast_shadows>` |
+| `robocon2027_field/scripts/glb_to_sdf.py` | 生成するワールドのテンプレートを同様に変更 → 再生成 |
+
+```bash
+cd /ros2_ws/src/robocon2027_field
+python3 scripts/glb_to_sdf.py glb/robocon2027_field_props.glb worlds/robocon2027.sdf \
+    --start-zones config/start_zones.yaml
+```
+
+**問題**: 影を有効にすると、床全体に縞模様のノイズ (シャドウアクネ: 床が自分自身に影を落として出る描画ノイズ) が出た。
+**対処**: 平らな床 (床の塗装・フィールドの土台・会場の床・練習ワールドの地面とライン) の visual に `<cast_shadows>false</cast_shadows>` を付けた。
+床は影を「受ける」ことはできるので、ロボットやブロックの影はそのまま床に映る。
+
+```diff
+ def visual(name, p, geom, color, cast_shadows=True):
++    cs = '' if cast_shadows else '<cast_shadows>false</cast_shadows>'
+-    return f'<visual name="{name}">{p}{geom}{material(color)}</visual>'
++    return f'<visual name="{name}">{p}{cs}{geom}{material(color)}</visual>'
+```
+
+確認: カメラ画像で縞模様が消え、ロボットの影だけが出ることを確認。下向きカメラには車体の影が映る (仕様)。
+影ありの実測 (Robocon フィールド, CPU 描画): リアルタイム比 0.6～0.67、LiDAR 5.4 Hz、前方カメラ 6.8 Hz (影なしより 2 割ほど重い)。
+
+### 11-2. 影を元に戻す (無効化)
+
+影を有効にしたところ画面が白飛びし、色検知で状態管理するのにも不向きだったため、影を無効に戻した。
+
+- 途中で試した「会場の天井照明 (真下向きスポットライト 9 灯, 環境光 0.4)」の変更 (中断した作業) も `glb_to_sdf.py` に残っていたため、あわせて取り消した。白飛びは主にこの複数照明の重なりが原因とみられる。
+- `glb_to_sdf.py` と `diffbot_world.sdf` は Git の初回コミットの内容に戻した (影なし・太陽光 1 灯・環境光 0.7)。床の `cast_shadows=false` 設定も影が無ければ不要なので一緒に消えている。
+
+```bash
+cd /ros2_ws/src
+git show HEAD:robocon2027_field/scripts/glb_to_sdf.py > robocon2027_field/scripts/glb_to_sdf.py
+git show HEAD:diffbot_sim/worlds/diffbot_world.sdf  > diffbot_sim/worlds/diffbot_world.sdf
+cd robocon2027_field
+python3 scripts/glb_to_sdf.py glb/robocon2027_field_props.glb worlds/robocon2027.sdf --start-zones config/start_zones.yaml
+git diff --stat HEAD -- worlds     # → 差分なし (初回コミットと同一)
+```
+
+確認 (カメラ画像の実測):
+
+| 項目 | 結果 |
+|---|---|
+| 白飛び画素 (255 に張り付き) | 0 % |
+| 下向きカメラで見た赤スタートゾーン | 平均 (227, 96, 96)、ばらつき 0.3 以下 (ルールブック値 (223, 34, 34) より淡い) |
+
+→ 色むらは無く色検知しやすいが、環境光が強いため色は淡く写る。色検知は HSV の色相で判定するのがよい。
+
+### 11-3. Windows 用の起動スクリプト
+
+Windows + Docker Desktop で動かすためのファイルを追加した。
+
+| ファイル | 内容 |
+|---|---|
+| `docker/docker-compose.windows.yml` | WSLg (`/run/desktop/mnt/host/wslg`) で GUI 表示。`network_mode: host` と `/dev/dri` は使わない。`DISPLAY` は環境変数 `DIFFBOT_DISPLAY` で切り替え (WSLg / VcXsrv) |
+| `docker/docker-compose.windows-gpu.yml` | GPU (試験的): `/dev/dxg` と `/usr/lib/wsl` を渡し Mesa の d3d12 ドライバを使う |
+| `docker/windows/common.ps1` | 共通関数 (Docker 確認・イメージ/コンテナ確認・フォルダ作成など) |
+| `docker/windows/start.ps1` | 確認 → ビルド → 起動 → `colcon build` → launch。`-Launch -Team -Display -Gpu -Build -NoRviz -Headless` |
+| `docker/windows/teleop.ps1`, `shell.ps1`, `stop.ps1`, `check_env.ps1` | 操縦 / bash / 停止 / 環境チェック |
+| `docker/windows/*.bat` | ダブルクリック用。`powershell -ExecutionPolicy Bypass -File` で同名の `.ps1` を呼ぶ |
+| `src/.gitattributes` | 改行コードの固定 (`.sh .py .sdf ...` は LF、`.ps1 .bat` は CRLF) |
+| `docker/Dockerfile` | `entrypoint.sh` の CRLF を LF に直す `sed` を追加 |
+
+Windows 特有の注意点として対処したこと:
+
+- **文字コード**: Windows PowerShell 5.1 は BOM 無し UTF-8 の `.ps1` を Shift-JIS として読み、日本語が化けて構文エラーになる → `.ps1` は **UTF-8 (BOM 付き) + CRLF** で保存。`.bat` は ASCII のみ。
+- **エラー処理**: PowerShell 5.1 で `$ErrorActionPreference='Stop'` にすると、docker が標準エラーに何か出すだけで例外になる → `'Continue'` にして `$LASTEXITCODE` で判定。
+- **引数渡し**: PowerShell 5.1 は外部コマンドに渡す文字列内の `"` を正しく渡せないことがある → コンテナで実行する `bash -c` の文字列にダブルクォートを使わない。
+- **改行コード**: Git for Windows の autocrlf で `entrypoint.sh` が CRLF になると、コンテナが起動しない → `.gitattributes` と Dockerfile の両方で対策。
+- **実行ポリシー**: 既定では `.ps1` をダブルクリック実行できない → `.bat` から `-ExecutionPolicy Bypass` で呼ぶ。
+- **Gazebo の残骸**: 起動前に `pkill -f '[i]gn gazebo'` で前回の Gazebo を止める (`[i]` は pkill が自分自身のコマンドラインにマッチしないための書き方)。
+
+検証 (Windows 実機は無いため、この Linux コンテナでできる範囲):
+
+```bash
+# PowerShell 7 (Linux 版) を scratch 領域に展開して構文チェック
+curl -fsSL -o pwsh.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz
+tar xzf pwsh.tar.gz
+./pwsh -NoProfile -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'   # → 全 .ps1 で OK
+
+# 引数を表示するだけの偽 docker コマンドを PATH に置いて start.ps1 を実行し、
+# docker compose -f docker-compose.windows.yml build / up -d / exec ... が正しく組み立てられることを確認
+PATH=./mock:$PATH ./pwsh -File start.ps1 -Team blue -NoRviz
+
+# start.ps1 がコンテナ内で実行する bash コマンド文字列をこの環境でそのまま実行し、
+# ビルド → 青チームのスタートゾーンにロボットが出現することを確認
+```
+
+> ⚠️ **Windows 実機では未検証**。特に WSLg のマウントパス、`-Gpu` (D3D12)、VcXsrv モードは実機で要確認。
+
+---
+
 ## 最終的なファイル構成
 
 ```
 /ros2_ws/src/
 ├── README.md
 ├── docs/{DOCKER_GUIDE.md, WORKLOG.md, COLCON_IGNORE}
-├── docker/{Dockerfile, docker-compose.yml, entrypoint.sh, COLCON_IGNORE}
+├── .gitattributes
+├── docker/
+│   ├── Dockerfile, docker-compose.yml, entrypoint.sh, COLCON_IGNORE
+│   ├── docker-compose.windows.yml, docker-compose.windows-gpu.yml
+│   └── windows/{start,teleop,shell,stop,check_env}.{bat,ps1}, common.ps1
 ├── robocon2027_field/
 │   ├── README.md, package.xml, CMakeLists.txt
 │   ├── glb/robocon2027_field_props.glb
@@ -358,3 +462,5 @@ ros2 launch robocon2027_field robocon2027.launch.py   # Robocon 2027 フィー�
 # 別端末 (docker compose exec ros2 bash で入る)
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
+
+Windows の場合: `src\docker\windows\start.bat` をダブルクリック → 操縦は `teleop.bat` (詳細は DOCKER_GUIDE の 6 章)。
