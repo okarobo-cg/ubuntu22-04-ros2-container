@@ -10,7 +10,7 @@ Docker に慣れていない人向けに、この環境を動かすのに必要�
 |---|---|---|
 | **イメージ (image)** | OS + ソフトをまとめた「設計図 / 型」 | `diffbot_sim:humble` (Ubuntu 22.04 + ROS 2 Humble + Gazebo Fortress) |
 | **コンテナ (container)** | イメージから作った「実物」。中で作業する | `ubuntu_22_04_ros2` |
-| **ボリューム (マウント)** | ホストのフォルダをコンテナに「共有」する | `src/ config/ models/ worlds/` |
+| **ボリューム (マウント)** | ホストのフォルダをコンテナに「共有」する | clone したフォルダ |
 
 ### ⚠️ 一番大事なこと: コンテナの中の変更は消える
 
@@ -18,13 +18,13 @@ Docker に慣れていない人向けに、この環境を動かすのに必要�
 
 | 場所 | 消える? |
 |---|---|
-| `/ros2_ws/src`, `/ros2_ws/config`, `/ros2_ws/models`, `/ros2_ws/worlds` | **残る** (ホストのフォルダと共有) |
+| `/ros2_ws/src/ubuntu22-04-ros2-container` | **残る** (ホストのフォルダと共有) |
 | `/ros2_ws/build`, `/ros2_ws/install`, `/ros2_ws/log` | 消える → `colcon build` し直せば OK |
 | `apt install` で入れたソフト、`~/.bashrc` の変更 | 消える → **`docker/Dockerfile` に書く** |
 
 つまり、
 
-- **自分で書くコード・設定は必ず `src/` などマウントされたフォルダに置く**
+- **自分で書くコード・設定は必ず clone したフォルダ (マウントされたフォルダ) の中に置く**
 - **`apt install` したものは `docker/Dockerfile` にも追記する** (追記しないと他の人の環境で動かない)
 
 ---
@@ -42,29 +42,20 @@ sudo usermod -aG docker $USER
 
 ### 2-2. ディレクトリ構成と取得
 
-配布物は次の構成で置きます。**`src` という名前で clone する**のがポイントです (`docker-compose` の設定がこの位置を前提にしています)。
-
-```
-<プロジェクト>/
-├── src/              ← git clone <リポジトリの URL> src
-├── config/           ← start.sh が自動で作る (空で OK)
-├── models/           ← start.sh が自動で作る (自作の Gazebo モデル置き場)
-└── worlds/           ← start.sh が自動で作る (自作ワールド置き場)
-```
-
 ```bash
-mkdir <プロジェクト>
-cd <プロジェクト>
-git clone <リポジトリの URL> src
+git clone <リポジトリの URL>
+cd ubuntu22-04-ros2-container
 ```
+
+clone したフォルダ全体がコンテナ内の `/ros2_ws/src/ubuntu22-04-ros2-container` にマウントされます。フォルダ名や置き場所は自由です。
 
 ### 2-3. 起動して入る
 
-`src/docker/` のスクリプトが、フォルダ作成・イメージのビルド・コンテナ起動をまとめてやってくれます。`docker` コマンドを自分で打つ必要はありません。
+`docker/` のスクリプトが、フォルダ作成・イメージのビルド・コンテナ起動をまとめてやってくれます。`docker` コマンドを自分で打つ必要はありません。
 
 ```bash
-src/docker/start.sh    # 初回はイメージのビルドで 10 分ほど。以降はコンテナ起動のみ (数秒)
-src/docker/shell.sh    # コンテナに入る
+docker/start.sh    # 初回はイメージのビルドで 10 分ほど。以降はコンテナ起動のみ (数秒)
+docker/shell.sh    # コンテナに入る
 ```
 
 コンテナの中で:
@@ -76,14 +67,14 @@ source install/setup.bash
 ros2 launch diffbot_sim sim.launch.py
 ```
 
-止めるときは `src/docker/stop.sh` (中身も削除するなら `src/docker/stop.sh --remove`)。
+止めるときは `docker/stop.sh` (中身も削除するなら `docker/stop.sh --remove`)。
 
 ### 2-4. 端末を増やす
 
-ROS 2 では端末を何枚も使います。ホストで新しい端末を開き、`src/docker/shell.sh` を実行すれば同じコンテナに入れます。
+ROS 2 では端末を何枚も使います。ホストで新しい端末を開き、`docker/shell.sh` を実行すれば同じコンテナに入れます。
 
 ```bash
-src/docker/shell.sh
+docker/shell.sh
 # 中に入ったら (install/setup.bash は .bashrc で自動読み込み済み)
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
@@ -92,7 +83,7 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 ## 3. よく使うコマンド早見表
 
-`start.sh` / `shell.sh` / `stop.sh` (Windows は `.bat`) が内部で実行している `docker compose` コマンドの対応表です。普段はスクリプトを使えば十分ですが、仕組みを知りたいときや直接使いたいときに参照してください。ホスト側で `src/docker/` にいる前提です。
+`start.sh` / `shell.sh` / `stop.sh` (Windows は `.bat`) が内部で実行している `docker compose` コマンドの対応表です。普段はスクリプトを使えば十分ですが、仕組みを知りたいときや直接使いたいときに参照してください。ホスト側で `docker/` にいる前提です。
 
 | やりたいこと | コマンド |
 |---|---|
@@ -110,14 +101,11 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 `docker compose` を使わない場合の同等コマンド (参考):
 
 ```bash
-docker build -t diffbot_sim:humble <プロジェクト>/src/docker
+docker build -t diffbot_sim:humble <リポジトリ>/docker
 docker run -it --name ubuntu_22_04_ros2 --net=host --ipc=host \
   -e DISPLAY=$DISPLAY -e QT_X11_NO_MITSHM=1 \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
-  -v <プロジェクト>/src:/ros2_ws/src \
-  -v <プロジェクト>/config:/ros2_ws/config \
-  -v <プロジェクト>/models:/ros2_ws/models \
-  -v <プロジェクト>/worlds:/ros2_ws/worlds \
+  -v <リポジトリ>:/ros2_ws/src/ubuntu22-04-ros2-container \
   --device /dev/dri \
   diffbot_sim:humble bash
 # 2 枚目以降の端末: docker exec -it ubuntu_22_04_ros2 bash
@@ -160,11 +148,13 @@ docker run -it --name ubuntu_22_04_ros2 --net=host --ipc=host \
 
 ### ファイルの所有者 (パーミッション)
 
-コンテナ内は `root` ユーザなので、コンテナ内で作ったファイルはホストから見ると **root 所有** になり、ホストのエディタで保存できないことがあります。そのときはコンテナ内で所有者を直します。
+コンテナ内は一般ユーザ **`okarobo`** で、UID/GID はホストのユーザに合わせてあります (`start.sh` が自動で渡す。Windows は 1000)。そのためコンテナ内で作ったファイルもホスト側で自分の所有になります。`apt install` などが必要なときは `sudo` が (パスワードなしで) 使えます。
+
+`start.sh` を使わずに直接 `docker compose` を実行するなど UID が合わなかった場合は、コンテナ内で所有者を直します。
 
 ```bash
 # コンテナ内で (1000 は多くの Ubuntu で最初のユーザの UID。ホストで `id -u` で確認)
-chown -R 1000:1000 /ros2_ws/src
+sudo chown -R 1000:1000 /ros2_ws/src/ubuntu22-04-ros2-container
 ```
 
 ### 同じネットワークで複数人が使う場合
@@ -184,7 +174,7 @@ export ROS_DOMAIN_ID=10   # 0〜101 の範囲で人ごとに変える (~/.bashrc
 ## 6. Windows で動かす
 
 Windows では **Docker Desktop** を使い、GUI (Gazebo, RViz) は **WSLg** (Windows 11 の WSL2 に標準で入っている GUI 機能) で表示します。
-起動は `src\docker\windows\` にあるスクリプトで行います。
+起動は `docker\windows\` にあるスクリプトで行います。
 
 > ⚠️ Windows 用スクリプトは作成者の環境 (Linux) で「構文チェック」と「docker に渡すコマンドの確認」まではしましたが、**Windows 実機ではまだ試していません**。動かなかったら `check_env.bat` の結果と一緒に報告してください。
 
@@ -198,21 +188,20 @@ Windows では **Docker Desktop** を使い、GUI (Gazebo, RViz) は **WSLg** (W
 | Git for Windows (clone する場合) | https://git-scm.com/download/win |
 | 空き容量 | 10 GB 以上 (イメージが約 4 GB) |
 
-フォルダ構成は Linux と同じです (`src` の中に `docker\windows\` がある)。
+フォルダ構成は Linux と同じです (リポジトリの中に `docker\windows\` がある)。
 
 ```powershell
-# 例: C:\work\diffbot に置く
-mkdir C:\work\diffbot
-cd C:\work\diffbot
-git clone <リポジトリの URL> src
+git clone <リポジトリの URL>
 ```
+
+置き場所は自由ですが、WSL2 のフォルダ (エクスプローラーで `\\wsl$\<ディストリ名>\home\...`) に clone すると、コンテナとのファイル共有が速くなります。
 
 > `.gitattributes` で改行コードを指定してあるので、Windows で clone しても Linux 用ファイル (`.sh`, `.py` など) は LF のままになります。
 
 ### 6-2. 起動
 
 1. Docker Desktop を起動し、左下が **Engine running** になるまで待つ
-2. エクスプローラーで `src\docker\windows\` を開き、**`check_env.bat`** をダブルクリック → `[NG]` が無いことを確認
+2. エクスプローラーで `docker\windows\` を開き、**`check_env.bat`** をダブルクリック → `[NG]` が無いことを確認
 3. **`start.bat`** をダブルクリック
    - 初回はイメージのビルドで 10 分ほどかかる
    - コンテナがバックグラウンドで起動する (この時点ではシミュレーションはまだ起動していない)
@@ -244,7 +233,7 @@ git clone <リポジトリの URL> src
 
 ### 6-4. start のオプション
 
-PowerShell で `src\docker\windows` に移動して実行します (`.bat` にも同じオプションを付けられます)。
+PowerShell で `docker\windows` に移動して実行します (`.bat` にも同じオプションを付けられます)。
 
 ```powershell
 .\start.bat                        # 既定 (WSLg で表示)
@@ -264,7 +253,7 @@ Get-Help .\start.ps1 -Detailed     # オプションの説明
 | GPU | `/dev/dri` (Intel/AMD) | `docker-compose.windows-gpu.yml` で `/dev/dxg` + `/usr/lib/wsl` (D3D12 経由, 試験的) |
 | ネットワーク | `network_mode: host` | 使わない (ROS 2 の通信はコンテナ内で完結) |
 | 共有メモリ | `ipc: host` | `shm_size: 2gb` |
-| マウント | `src config models worlds` | 同じ |
+| マウント | リポジトリ全体 | 同じ |
 
 イメージ (`diffbot_sim:humble`) とコンテナ名 (`ubuntu_22_04_ros2`) は Linux 版と共通です。
 

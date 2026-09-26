@@ -64,7 +64,7 @@ ros2 launch robocon2027_field robocon2027.launch.py gui:=false rviz:=false   # �
 Gazebo Fortress は GLB を読み込めません。この GLB は全パーツが直方体・円柱・球なので、寸法・位置・色を読み取って SDF の基本形状に置き換えています。GLB を更新したら再生成してください。
 
 ```bash
-cd /ros2_ws/src/robocon2027_field
+cd /ros2_ws/src/ubuntu22-04-ros2-container/robocon2027_field
 python3 scripts/glb_to_sdf.py glb/robocon2027_field_props.glb worlds/robocon2027.sdf \
     --start-zones config/start_zones.yaml
 ```
@@ -105,5 +105,5 @@ ros2 run robocon2027_field check_robot_size.py <xacro ファイル>  # 別のロ
 
 ## 参考
 
-- ルールブック: `Robocon_2027_Rulebook_v1-1.pdf` (著作物のため本パッケージには含めていない。`/ros2_ws/models/` に置いてある)
+- ルールブック: `Robocon_2027_Rulebook_v1-1.pdf` (著作物のため本パッケージには含めていない)
 - 公式サイト: http://www.aburobocon2027.id

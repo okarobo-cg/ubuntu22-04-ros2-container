@@ -11,15 +11,14 @@
 使い方:
   ros2 launch diffbot_sim sim.launch.py
   ros2 launch diffbot_sim sim.launch.py gui:=false rviz:=false   # 画面なし (サーバのみ)
-  ros2 launch diffbot_sim sim.launch.py world:=/ros2_ws/worlds/my_world.sdf x:=1.0 yaw:=1.57
+  ros2 launch diffbot_sim sim.launch.py world:=/ros2_ws/src/ubuntu22-04-ros2-container/my_world.sdf x:=1.0 yaw:=1.57
 """
 
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (AppendEnvironmentVariable, DeclareLaunchArgument,
-                            IncludeLaunchDescription)
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (Command, LaunchConfiguration,
@@ -56,10 +55,6 @@ def generate_launch_description():
         DeclareLaunchArgument('z', default_value='0.05', description='初期位置 z [m]'),
         DeclareLaunchArgument('yaw', default_value='0.0', description='初期姿勢 yaw [rad]'),
     ]
-
-    # Gazebo がモデルを探すパスに /ros2_ws/models (自作モデル置き場) を追加
-    set_resource_path = AppendEnvironmentVariable(
-        'IGN_GAZEBO_RESOURCE_PATH', '/ros2_ws/models')
 
     # 1. Gazebo 本体
     #    -r: 起動と同時にシミュレーション開始
@@ -125,7 +120,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription(declare_args + [
-        set_resource_path,
         gazebo,
         robot_state_publisher,
         spawn,

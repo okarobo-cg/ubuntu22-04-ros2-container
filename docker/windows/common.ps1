@@ -7,9 +7,8 @@
 $ErrorActionPreference = 'Continue'
 
 # パス
-$Script:DockerDir   = Split-Path -Parent $PSScriptRoot                 # <プロジェクト>\src\docker
-$Script:SrcDir      = Split-Path -Parent $Script:DockerDir             # <プロジェクト>\src
-$Script:ProjectRoot = Split-Path -Parent $Script:SrcDir                # <プロジェクト>
+$Script:DockerDir   = Split-Path -Parent $PSScriptRoot                 # <リポジトリ>\docker
+$Script:RepoRoot    = Split-Path -Parent $Script:DockerDir             # <リポジトリ>
 $Script:ComposeFile = Join-Path $Script:DockerDir 'docker-compose.windows.yml'
 $Script:GpuFile     = Join-Path $Script:DockerDir 'docker-compose.windows-gpu.yml'
 $Script:ImageName   = 'diffbot_sim:humble'
@@ -65,17 +64,6 @@ function Test-ImageExists {
 function Test-ContainerRunning {
     $state = docker inspect -f '{{.State.Running}}' $Script:Container 2>$null
     return ($LASTEXITCODE -eq 0 -and $state -eq 'true')
-}
-
-# compose がマウントする空フォルダを作る (無いと Docker が勝手に作ってしまう)
-function Initialize-ProjectDirs {
-    foreach ($d in 'config', 'models', 'worlds') {
-        $p = Join-Path $Script:ProjectRoot $d
-        if (-not (Test-Path $p)) {
-            New-Item -ItemType Directory -Path $p | Out-Null
-            Write-Ok "フォルダを作成: $p"
-        }
-    }
 }
 
 # GUI の表示先 (compose ファイルの ${DIFFBOT_DISPLAY} に渡す)

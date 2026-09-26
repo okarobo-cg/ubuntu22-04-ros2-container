@@ -20,34 +20,23 @@ ROS 2 Humble と Gazebo Fortress で動かす、学習用のシンプルな差�
 
 Docker (Ubuntu は Docker Engine、Windows は Docker Desktop) は入っている前提です。
 コンテナ名は **`ubuntu_22_04_ros2`**、イメージ名は `diffbot_sim:humble` です。
-以降の操作はすべて `src/docker/` のスクリプトが行うので、`docker` コマンドを自分で打つ必要はありません。
+以降の操作はすべて `docker/` のスクリプトが行うので、`docker` コマンドを自分で打つ必要はありません。
 
 ### 1-1. 取得 (最初の 1 回だけ)
 
-このリポジトリは **`src` という名前のフォルダに clone する**前提です (Docker の設定がこの位置を前提にしています)。
-
 ```bash
-mkdir <プロジェクト>          # フォルダ名は好きに決めてよい
-cd <プロジェクト>
-git clone https://github.com/okarobo-cg/ubuntu22-04-ros2-container.git src
+git clone https://github.com/okarobo-cg/ubuntu22-04-ros2-container.git
+cd ubuntu22-04-ros2-container
 ```
 
-```
-<プロジェクト>/
-├── src/        ← 今 clone したこのリポジトリ
-├── config/     ← 起動時に自動で作られる (空で OK)
-├── models/     ← 起動時に自動で作られる (自作 Gazebo モデル置き場)
-└── worlds/     ← 起動時に自動で作られる (自作ワールド置き場)
-```
-
-コンテナ内では `/ros2_ws/src` などにマウントされ、ここに置いたファイルはコンテナを消しても残ります。
+clone したフォルダ全体がコンテナ内の `/ros2_ws/src/ubuntu22-04-ros2-container` にマウントされ、ここに置いたファイルはコンテナを消しても残ります。フォルダ名や置き場所は自由です (Windows は WSL2 側のフォルダに置くとファイル共有が速くなります)。
 
 ### 1-2. 起動 (イメージのビルド → コンテナをバックグラウンド起動)
 
 | OS | やること |
 |---|---|
-| Ubuntu | `src/docker/start.sh` を実行 |
-| Windows | `src\docker\windows\start.bat` をダブルクリック (先に `check_env.bat` で環境チェックしておくと安心) |
+| Ubuntu | `docker/start.sh` を実行 |
+| Windows | `docker\windows\start.bat` をダブルクリック (先に `check_env.bat` で環境チェックしておくと安心) |
 
 初回はイメージのビルドで 10 分ほどかかります。シミュレーションはまだ起動しません (起動するだけ)。
 
@@ -55,8 +44,8 @@ git clone https://github.com/okarobo-cg/ubuntu22-04-ros2-container.git src
 
 | OS | やること |
 |---|---|
-| Ubuntu | `src/docker/shell.sh` |
-| Windows | `src\docker\windows\shell.bat` をダブルクリック |
+| Ubuntu | `docker/shell.sh` |
+| Windows | `docker\windows\shell.bat` をダブルクリック |
 
 コンテナに入ったら、次の「2. クイックスタート」に進みます。
 
@@ -64,14 +53,14 @@ git clone https://github.com/okarobo-cg/ubuntu22-04-ros2-container.git src
 
 | OS | やること |
 |---|---|
-| Ubuntu | `src/docker/stop.sh` (削除するなら `src/docker/stop.sh --remove`) |
-| Windows | `src\docker\windows\stop.bat` (削除するなら `stop.bat -Remove`) |
+| Ubuntu | `docker/stop.sh` (削除するなら `docker/stop.sh --remove`) |
+| Windows | `docker\windows\stop.bat` (削除するなら `stop.bat -Remove`) |
 
-停止だけなら次回はすぐ再開できます。削除すると `build/ install/` や `apt install` した内容は消えますが、`src / config / models / worlds` はホストのフォルダなので残ります。
+停止だけなら次回はすぐ再開できます。削除すると `build/ install/` や `apt install` した内容は消えますが、clone したフォルダはホストにあるので残ります。
 
 ### 補足
 
-- GPU (`/dev/dri`) が無い Ubuntu PC では、`src/docker/docker-compose.yml` の `devices:` の 2 行をコメントアウトしてください (CPU 描画で動きます)。
+- GPU (`/dev/dri`) が無い Ubuntu PC では、`docker/docker-compose.yml` の `devices:` の 2 行をコメントアウトしてください (CPU 描画で動きます)。
 - Windows は WSL2 (Windows 11 推奨) + Docker Desktop が必要です。GUI は WSLg で表示されるので `xhost` は不要です。準備手順やオプション (`-Gpu` / `-Display vcxsrv` / `-Build`)、トラブル対応は [DOCKER_GUIDE の 6 章](docs/DOCKER_GUIDE.md#6-windows-で動かす) を参照してください。
 - キーボード操縦は Ubuntu / Windows 共通で、コンテナに入って `ros2 run teleop_twist_keyboard teleop_twist_keyboard` を実行します (Windows は `teleop.bat` でも同じことができます)。
 - `docker compose` を直接使いたい場合の対応表は [DOCKER_GUIDE の早見表](docs/DOCKER_GUIDE.md#3-よく使うコマンド早見表) を参照してください。
@@ -94,7 +83,7 @@ source install/setup.bash
 ros2 launch diffbot_sim sim.launch.py
 ```
 
-別の端末 (ホストで `src/docker/shell.sh` を実行してもう 1 つコンテナに入る。Windows は `shell.bat` または `teleop.bat`) で操縦します。
+別の端末 (ホストで `docker/shell.sh` を実行してもう 1 つコンテナに入る。Windows は `shell.bat` または `teleop.bat`) で操縦します。
 
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
@@ -121,7 +110,7 @@ ros2 launch robocon2027_field robocon2027.launch.py   # 赤チームのスター
 
 | 引数 | 既定値 | 説明 |
 |---|---|---|
-| `world` | `diffbot_sim/worlds/diffbot_world.sdf` | 読み込むワールド。自作ワールドは `/ros2_ws/worlds/` に置いて `world:=/ros2_ws/worlds/xxx.sdf` |
+| `world` | `diffbot_sim/worlds/diffbot_world.sdf` | 読み込むワールド。自作ワールドはこのリポジトリ内に置いて `world:=/ros2_ws/src/ubuntu22-04-ros2-container/xxx.sdf` |
 | `gui` | `true` | `false` で Gazebo を画面なし (サーバのみ) で起動 |
 | `rviz` | `true` | `false` で RViz2 を起動しない |
 | `x` `y` `z` `yaw` | `0 0 0.05 0` | ロボットの初期位置・向き |
@@ -227,7 +216,7 @@ odom
 ## 5. ファイル構成
 
 ```
-src/
+ubuntu22-04-ros2-container/
 ├── README.md                    … このファイル
 ├── docs/
 │   ├── DOCKER_GUIDE.md          … Docker の使い方

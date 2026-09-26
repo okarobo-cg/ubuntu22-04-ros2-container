@@ -38,7 +38,6 @@ try {
     if (-not (Test-DockerRunning)) { exit 1 }
     Write-Ok 'Docker Desktop は起動しています'
 
-    Initialize-ProjectDirs
     Set-DisplayEnv $Display
     Write-Ok "GUI の表示先: $Display (DISPLAY=$env:DIFFBOT_DISPLAY)"
     if ($Gpu) { Write-Warn2 'GPU 描画 (試験的) を使います' }

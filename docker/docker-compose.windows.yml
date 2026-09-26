@@ -35,9 +35,6 @@ services:
       # WSLg (GUI)
       - /run/desktop/mnt/host/wslg/.X11-unix:/tmp/.X11-unix
       - /run/desktop/mnt/host/wslg:/mnt/wslg
-      # ソースなど (Linux 版と同じ)
-      - ../../src:/ros2_ws/src
-      - ../../config:/ros2_ws/config
-      - ../../models:/ros2_ws/models
-      - ../../worlds:/ros2_ws/worlds
+      # ソース (Linux 版と同じ)
+      - ..:/ros2_ws/src/ubuntu22-04-ros2-container
     command: bash

@@ -48,15 +48,15 @@ if (Test-DockerRunning) {
 }
 
 Write-Step 'ディスクの空き容量 (イメージに約 4 GB 必要)'
-$drive = (Get-Item $Script:ProjectRoot).PSDrive
+$drive = (Get-Item $Script:RepoRoot).PSDrive
 $freeGB = [math]::Round($drive.Free / 1GB, 1)
 if ($freeGB -ge 10) { Write-Ok "$($drive.Name): ドライブの空き $freeGB GB" }
 else { Write-Warn2 "$($drive.Name): ドライブの空き $freeGB GB (少なめです)" }
 
-Write-Step 'プロジェクトのフォルダ構成'
-Write-Host "  プロジェクト: $Script:ProjectRoot"
-foreach ($f in @('src\diffbot_sim\package.xml', 'src\robocon2027_field\package.xml', 'src\docker\Dockerfile', 'src\docker\entrypoint.sh')) {
-    if (Test-Path (Join-Path $Script:ProjectRoot $f)) { Write-Ok $f } else { Write-Ng "$f がありません"; $ng++ }
+Write-Step 'リポジトリのフォルダ構成'
+Write-Host "  リポジトリ: $Script:RepoRoot"
+foreach ($f in @('diffbot_sim\package.xml', 'robocon2027_field\package.xml', 'docker\Dockerfile', 'docker\entrypoint.sh')) {
+    if (Test-Path (Join-Path $Script:RepoRoot $f)) { Write-Ok $f } else { Write-Ng "$f がありません"; $ng++ }
 }
 # entrypoint.sh が CRLF になっているとコンテナが起動しない (Git の autocrlf が原因)
 $ep = Join-Path $Script:DockerDir 'entrypoint.sh'

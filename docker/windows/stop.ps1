@@ -4,7 +4,7 @@
 
 .PARAMETER Remove
   停止に加えてコンテナを削除する (docker compose down)。
-  src / config / models / worlds はホストにあるので消えないが、
+  リポジトリのファイルはホストにあるので消えないが、
   コンテナ内の build / install や、コンテナ内で apt install したものは消える。
 
 .EXAMPLE
