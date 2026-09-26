@@ -39,7 +39,8 @@
   direction: GZ_TO_ROS
 
 # 3D LiDAR 点群
-- ros_topic_name: "/lidar/points"
+# 車体に当たった点を含む生データ。scripts/lidar_body_filter.py が /lidar/points に整形して出す
+- ros_topic_name: "/lidar/points_raw"
   gz_topic_name: "/lidar/points"
   ros_type_name: "sensor_msgs/msg/PointCloud2"
   gz_type_name: "ignition.msgs.PointCloudPacked"

@@ -9,4 +9,8 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS scripts/lidar_body_filter.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

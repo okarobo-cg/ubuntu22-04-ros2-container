@@ -5,7 +5,8 @@
   2. robot_state_publisher (URDF を /robot_description に publish, TF を出す)
   3. ros_gz_sim create (/robot_description から Gazebo にロボットを出現させる)
   4. ros_gz_bridge parameter_bridge (Gazebo <-> ROS 2 のトピック変換)
-  5. RViz2 (rviz:=false で無効)
+  5. lidar_body_filter (LiDAR 点群から車体に当たった点を除く: /lidar/points_raw -> /lidar/points)
+  6. RViz2 (rviz:=false で無効)
 
 使い方:
   ros2 launch diffbot_sim sim.launch.py
@@ -106,7 +107,15 @@ def generate_launch_description():
                      'use_sim_time': use_sim_time}],
     )
 
-    # 5. RViz2
+    # 5. LiDAR 点群から車体の点を除去
+    lidar_filter = Node(
+        package='diffbot_sim',
+        executable='lidar_body_filter.py',
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
+    )
+
+    # 6. RViz2
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -121,5 +130,6 @@ def generate_launch_description():
         robot_state_publisher,
         spawn,
         bridge,
+        lidar_filter,
         rviz_node,
     ])

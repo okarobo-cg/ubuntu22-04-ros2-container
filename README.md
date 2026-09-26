@@ -140,7 +140,8 @@ ros2 launch robocon2027_field robocon2027.launch.py   # 赤チームのスター
 | `/tf` | `tf2_msgs/msg/TFMessage` | Gazebo → ROS | `odom` → `base_footprint` |
 | `/tf_static`, `/tf` | | robot_state_publisher | ロボット内部の座標系 |
 | `/joint_states` | `sensor_msgs/msg/JointState` | Gazebo → ROS | 車輪の角度 |
-| `/lidar/points` | `sensor_msgs/msg/PointCloud2` | Gazebo → ROS | 3D LiDAR 点群 (10 Hz, 360×16 点, frame: `lidar_link`) |
+| `/lidar/points` | `sensor_msgs/msg/PointCloud2` | lidar_body_filter | 3D LiDAR 点群 (10 Hz, 最大 360×16 点, frame: `lidar_link`)。車体に当たった点は除去済み |
+| `/lidar/points_raw` | `sensor_msgs/msg/PointCloud2` | Gazebo → ROS | 上のフィルタ前の生データ |
 | `/front_camera/image_raw` | `sensor_msgs/msg/Image` | Gazebo → ROS | 前方カメラ 640×480 (15 Hz) |
 | `/front_camera/camera_info` | `sensor_msgs/msg/CameraInfo` | Gazebo → ROS | 前方カメラの内部パラメータ |
 | `/down_camera/image_raw` | `sensor_msgs/msg/Image` | Gazebo → ROS | 下向きカメラ 320×240 (15 Hz)、画像の上 = ロボットの前 |
