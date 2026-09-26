@@ -21,17 +21,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-rqt-image-view \
       ros-humble-teleop-twist-keyboard \
       python3-colcon-common-extensions \
-      vim nano git \
+      vim nano git sudo \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /ros2_ws
+# 一般ユーザ okarobo (sudo はパスワードなしで使える)。
+# UID/GID はホストのユーザに合わせる (start.sh が渡す。既定 1000)。
+# こうするとマウントしたフォルダのファイルがホスト側でも自分の所有になる。
+ARG USER_UID=1000
+ARG USER_GID=1000
+RUN groupadd --gid ${USER_GID} okarobo \
+ && useradd --uid ${USER_UID} --gid ${USER_GID} --groups video --create-home --shell /bin/bash okarobo \
+ && echo 'okarobo ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/okarobo \
+ && chmod 0440 /etc/sudoers.d/okarobo \
+ && mkdir -p /ros2_ws && chown okarobo:okarobo /ros2_ws
 
 COPY entrypoint.sh /entrypoint.sh
 # Windows で clone すると改行が CRLF になり "bash\r: No such file" で起動しなくなるので LF に直す
 RUN sed -i 's/\r$//' /entrypoint.sh \
- && chmod +x /entrypoint.sh \
- && echo 'source /opt/ros/humble/setup.bash' >> /root/.bashrc \
- && echo 'if [ -f /ros2_ws/install/setup.bash ]; then source /ros2_ws/install/setup.bash; fi' >> /root/.bashrc
+ && chmod +x /entrypoint.sh
+
+USER okarobo
+WORKDIR /ros2_ws
+RUN echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc \
+ && echo 'if [ -f /ros2_ws/install/setup.bash ]; then source /ros2_ws/install/setup.bash; fi' >> ~/.bashrc
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["bash"]
