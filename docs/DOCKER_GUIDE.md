@@ -40,33 +40,31 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 ```
 
-### 2-2. ディレクトリ構成
+### 2-2. ディレクトリ構成と取得
 
-配布物を次の構成で置きます。
+配布物は次の構成で置きます。**`src` という名前で clone する**のがポイントです (`docker-compose` の設定がこの位置を前提にしています)。
 
 ```
 <プロジェクト>/
-├── src/              ← このリポジトリ (README.md, diffbot_sim/, docker/, docs/)
-├── config/
-├── models/           ← 自作の Gazebo モデル置き場 (空で OK)
-└── worlds/           ← 自作ワールド置き場 (空で OK)
+├── src/              ← git clone <リポジトリの URL> src
+├── config/           ← start.sh が自動で作る (空で OK)
+├── models/           ← start.sh が自動で作る (自作の Gazebo モデル置き場)
+└── worlds/           ← start.sh が自動で作る (自作ワールド置き場)
 ```
 
 ```bash
-mkdir -p <プロジェクト>/{config,models,worlds}
+mkdir <プロジェクト>
+cd <プロジェクト>
+git clone <リポジトリの URL> src
 ```
 
-> 空のフォルダが無いと Docker が root 所有で勝手に作ってしまうので、先に作っておきます。
+### 2-3. 起動して入る
 
-### 2-3. イメージのビルドと起動
+`src/docker/` のスクリプトが、フォルダ作成・イメージのビルド・コンテナ起動をまとめてやってくれます。`docker` コマンドを自分で打つ必要はありません。
 
 ```bash
-cd <プロジェクト>/src/docker
-
-xhost +local:            # コンテナからホストの画面に GUI を出す許可 (PC を再起動するたびに 1 回)
-docker compose build     # イメージを作る (初回は 10 分ほど。Dockerfile を変えたときも実行)
-docker compose up -d     # コンテナをバックグラウンドで起動
-docker compose exec ros2 bash   # コンテナの中に入る
+src/docker/start.sh    # 初回はイメージのビルドで 10 分ほど。以降はコンテナ起動のみ (数秒)
+src/docker/shell.sh    # コンテナに入る
 ```
 
 コンテナの中で:
@@ -78,13 +76,14 @@ source install/setup.bash
 ros2 launch diffbot_sim sim.launch.py
 ```
 
+止めるときは `src/docker/stop.sh` (中身も削除するなら `src/docker/stop.sh --remove`)。
+
 ### 2-4. 端末を増やす
 
-ROS 2 では端末を何枚も使います。ホストで新しい端末を開き、同じコマンドでコンテナに入ります。
+ROS 2 では端末を何枚も使います。ホストで新しい端末を開き、`src/docker/shell.sh` を実行すれば同じコンテナに入れます。
 
 ```bash
-cd <プロジェクト>/src/docker
-docker compose exec ros2 bash
+src/docker/shell.sh
 # 中に入ったら (install/setup.bash は .bashrc で自動読み込み済み)
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
@@ -93,7 +92,7 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 
 ## 3. よく使うコマンド早見表
 
-ホスト側で `src/docker/` にいる前提です。
+`start.sh` / `shell.sh` / `stop.sh` (Windows は `.bat`) が内部で実行している `docker compose` コマンドの対応表です。普段はスクリプトを使えば十分ですが、仕組みを知りたいときや直接使いたいときに参照してください。ホスト側で `src/docker/` にいる前提です。
 
 | やりたいこと | コマンド |
 |---|---|
@@ -216,15 +215,25 @@ git clone <リポジトリの URL> src
 2. エクスプローラーで `src\docker\windows\` を開き、**`check_env.bat`** をダブルクリック → `[NG]` が無いことを確認
 3. **`start.bat`** をダブルクリック
    - 初回はイメージのビルドで 10 分ほどかかる
-   - Gazebo と RViz2 のウィンドウが開き、ABU Robocon 2027 フィールドの赤スタートゾーンにロボットが出る
-4. 操縦するときは **`teleop.bat`** をダブルクリックし、そのウィンドウを選んだ状態で `i` (前進) / `,` (後退) / `j` `l` (旋回) / `k` (停止)
-5. 終わるときは `start.bat` の画面で `Ctrl+C`、その後 **`stop.bat`**
+   - コンテナがバックグラウンドで起動する (この時点ではシミュレーションはまだ起動していない)
+4. **`shell.bat`** をダブルクリックしてコンテナに入り、次を実行する
+
+   ```bash
+   cd /ros2_ws
+   colcon build --symlink-install
+   source install/setup.bash
+   ros2 launch robocon2027_field robocon2027.launch.py
+   ```
+
+   Gazebo と RViz2 のウィンドウが開き、ABU Robocon 2027 フィールドの赤スタートゾーンにロボットが出る。
+5. 操縦するときは **`teleop.bat`** をダブルクリックし、そのウィンドウを選んだ状態で `i` (前進) / `,` (後退) / `j` `l` (旋回) / `k` (停止)
+6. 終わるときは `shell.bat` の画面で `Ctrl+C`、その後 **`stop.bat`**
 
 ### 6-3. スクリプト一覧
 
 | スクリプト | 内容 |
 |---|---|
-| `start.bat` / `start.ps1` | Docker 確認 → (必要なら) ビルド → コンテナ起動 → `colcon build` → シミュレーション起動 |
+| `start.bat` / `start.ps1` | Docker 確認 → (必要なら) ビルド → コンテナをバックグラウンド起動 |
 | `teleop.bat` / `teleop.ps1` | キーボード操縦 |
 | `shell.bat` / `shell.ps1` | 起動中のコンテナで bash を開く (ROS 2 コマンドを打つ端末を増やす) |
 | `stop.bat` / `stop.ps1` | コンテナ停止。`-Remove` を付けると削除 |
@@ -238,17 +247,14 @@ git clone <リポジトリの URL> src
 PowerShell で `src\docker\windows` に移動して実行します (`.bat` にも同じオプションを付けられます)。
 
 ```powershell
-.\start.bat                        # Robocon 2027 フィールド・赤チーム (既定)
-.\start.bat -Team blue             # 青チーム
-.\start.bat -Launch diffbot        # 練習用ワールド
-.\start.bat -Launch shell          # シミュレーションは起動せず bash だけ開く
-.\start.bat -NoRviz                # RViz を出さない (軽くなる)
-.\start.bat -Headless              # Gazebo の画面を出さない (GUI が出ないときの切り分け)
+.\start.bat                        # 既定 (WSLg で表示)
 .\start.bat -Display vcxsrv        # WSLg ではなく VcXsrv で表示
 .\start.bat -Gpu                   # GPU 描画を使う (試験的)
 .\start.bat -Build                 # イメージを作り直す (Dockerfile を変えたとき)
 Get-Help .\start.ps1 -Detailed     # オプションの説明
 ```
+
+シミュレーションの起動 (`ros2 launch ...`) やワールド・チームの切り替えは、`shell.bat` でコンテナに入ってから launch コマンドの引数で行います。
 
 ### 6-5. 仕組み (Linux 版との違い)
 
@@ -271,7 +277,7 @@ Get-Help .\start.ps1 -Detailed     # オプションの説明
 | コンテナがすぐ終了し `exec /entrypoint.sh: no such file or directory` | `entrypoint.sh` が CRLF。Dockerfile で自動変換しているので `start.bat -Build` で作り直す |
 | Gazebo / RViz の画面が出ない (`could not connect to display`) | `wsl --update` して PC を再起動 → `check_env.bat` で「WSLg の X11 ソケットが見えます」を確認。ダメなら VcXsrv を入れて XLaunch を「Disable access control」にチェックして起動し、`start.bat -Display vcxsrv` |
 | 画面は出るが真っ黒・すぐ落ちる (`-Gpu` 使用時) | `-Gpu` を外す (CPU 描画) |
-| 動作がとても重い | `-NoRviz`、または `-Gpu` を試す。ノート PC は電源につなぐ |
+| 動作がとても重い | `ros2 launch ... rviz:=false` (RViz を出さない)、または `-Gpu` を試す。ノート PC は電源につなぐ |
 | `.ps1` を直接実行すると「スクリプトの実行が無効」 | `.bat` の方を使う。または `powershell -ExecutionPolicy Bypass -File .\start.ps1` |
 | 日本語が文字化けする | Windows Terminal か PowerShell 7 を使う (スクリプトは UTF-8 BOM 付きで保存済み) |
-| 前回の Gazebo が残って動作がおかしい | `start.bat` は起動前に残った Gazebo を自動で止める。それでもダメなら `stop.bat` → `start.bat` |
+| 前回の Gazebo が残って動作がおかしい | コンテナ内で `pkill -f "ign gazebo"` してから launch し直す。それでもダメなら `stop.bat` → `start.bat` |

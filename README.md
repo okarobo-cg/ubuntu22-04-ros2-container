@@ -20,78 +20,63 @@ ROS 2 Humble と Gazebo Fortress で動かす、学習用のシンプルな差�
 
 Docker (Ubuntu は Docker Engine、Windows は Docker Desktop) は入っている前提です。
 コンテナ名は **`ubuntu_22_04_ros2`**、イメージ名は `diffbot_sim:humble` です。
+以降の操作はすべて `src/docker/` のスクリプトが行うので、`docker` コマンドを自分で打つ必要はありません。
 
-### フォルダ構成 (Ubuntu / Windows 共通)
+### 1-1. 取得 (最初の 1 回だけ)
+
+このリポジトリは **`src` という名前のフォルダに clone する**前提です (Docker の設定がこの位置を前提にしています)。
+
+```bash
+mkdir <プロジェクト>          # フォルダ名は好きに決めてよい
+cd <プロジェクト>
+git clone https://github.com/okarobo-cg/ubuntu22-04-ros2-container.git src
+```
 
 ```
 <プロジェクト>/
-├── src/        ← このリポジトリ (clone 先のフォルダ名は必ず src にする)
-├── config/     ← 空で OK
-├── models/     ← 空で OK (自作 Gazebo モデル置き場)
-└── worlds/     ← 空で OK (自作ワールド置き場)
+├── src/        ← 今 clone したこのリポジトリ
+├── config/     ← 起動時に自動で作られる (空で OK)
+├── models/     ← 起動時に自動で作られる (自作 Gazebo モデル置き場)
+└── worlds/     ← 起動時に自動で作られる (自作ワールド置き場)
 ```
 
-`config/ models/ worlds/` は無ければ作っておきます (Windows の `start.bat` は自動で作ります)。
 コンテナ内では `/ros2_ws/src` などにマウントされ、ここに置いたファイルはコンテナを消しても残ります。
 
-### ホストが Ubuntu の場合
+### 1-2. 起動 (イメージのビルド → コンテナをバックグラウンド起動)
 
-```bash
-cd <プロジェクト>
-mkdir -p config models worlds
-
-cd src/docker
-xhost +local:                     # GUI 表示の許可 (PC を再起動するたびに 1 回)
-docker compose build              # イメージ作成 (初回のみ・Dockerfile を変えたとき。10 分ほど)
-docker compose up -d              # コンテナ起動
-docker compose exec ros2 bash     # コンテナに入る (端末を増やすときも同じコマンド)
-```
-
-| 操作 | コマンド (`src/docker` で実行) |
+| OS | やること |
 |---|---|
-| 端末を増やす | `docker compose exec ros2 bash` または `docker exec -it ubuntu_22_04_ros2 bash` |
-| 停止 (中身は残る) | `docker compose stop` |
-| 再開 | `docker compose start` |
-| 削除 (マウント外の変更は消える) | `docker compose down` |
+| Ubuntu | `src/docker/start.sh` を実行 |
+| Windows | `src\docker\windows\start.bat` をダブルクリック (先に `check_env.bat` で環境チェックしておくと安心) |
 
-GPU (`/dev/dri`) が無い PC では、`docker-compose.yml` の `devices:` の 2 行をコメントアウトしてください (CPU 描画で動きます)。
+初回はイメージのビルドで 10 分ほどかかります。シミュレーションはまだ起動しません (起動するだけ)。
 
-### ホストが Windows の場合
+### 1-3. コンテナに入る (端末を増やすときも同じ)
 
-WSL2 (Windows 11 推奨) と Docker Desktop を使います。Docker Desktop を起動し、**Engine running** になってから操作します。
-GUI は WSLg で表示されるので `xhost` は不要です。
-
-**簡単な方法: スクリプトをダブルクリック** (`src\docker\windows\`)
-
-| ファイル | 内容 |
+| OS | やること |
 |---|---|
-| `check_env.bat` | 環境チェック (最初に 1 回。`[NG]` が無いこと) |
-| `start.bat` | ビルド → コンテナ起動 → `colcon build` → Robocon 2027 フィールド (赤) を起動 |
-| `teleop.bat` | キーボード操縦 (start の後に別ウィンドウで) |
-| `shell.bat` | コンテナの bash を開く |
-| `stop.bat` | コンテナ停止 (`stop.bat -Remove` で削除) |
-
-`start.bat -Launch diffbot` (練習用ワールド)、`start.bat -Launch shell` (bash だけ開く)、`start.bat -Team blue` などのオプションがあります。詳細は [DOCKER_GUIDE の 6 章](docs/DOCKER_GUIDE.md#6-windows-で動かす)。
-
-**手動で立ち上げる場合** (PowerShell)
-
-```powershell
-cd <プロジェクト>
-mkdir config, models, worlds -ErrorAction SilentlyContinue
-
-cd src\docker
-docker compose -f docker-compose.windows.yml build            # 初回のみ
-docker compose -f docker-compose.windows.yml up -d
-docker compose -f docker-compose.windows.yml exec ros2 bash   # 端末を増やすときも同じ
-# 停止 / 再開 / 削除
-docker compose -f docker-compose.windows.yml stop
-docker compose -f docker-compose.windows.yml start
-docker compose -f docker-compose.windows.yml down
-```
-
-> ⚠️ Windows 用の設定・スクリプトは Windows 実機ではまだ動作確認していません。
+| Ubuntu | `src/docker/shell.sh` |
+| Windows | `src\docker\windows\shell.bat` をダブルクリック |
 
 コンテナに入ったら、次の「2. クイックスタート」に進みます。
+
+### 1-4. 停止
+
+| OS | やること |
+|---|---|
+| Ubuntu | `src/docker/stop.sh` (削除するなら `src/docker/stop.sh --remove`) |
+| Windows | `src\docker\windows\stop.bat` (削除するなら `stop.bat -Remove`) |
+
+停止だけなら次回はすぐ再開できます。削除すると `build/ install/` や `apt install` した内容は消えますが、`src / config / models / worlds` はホストのフォルダなので残ります。
+
+### 補足
+
+- GPU (`/dev/dri`) が無い Ubuntu PC では、`src/docker/docker-compose.yml` の `devices:` の 2 行をコメントアウトしてください (CPU 描画で動きます)。
+- Windows は WSL2 (Windows 11 推奨) + Docker Desktop が必要です。GUI は WSLg で表示されるので `xhost` は不要です。準備手順やオプション (`-Gpu` / `-Display vcxsrv` / `-Build`)、トラブル対応は [DOCKER_GUIDE の 6 章](docs/DOCKER_GUIDE.md#6-windows-で動かす) を参照してください。
+- キーボード操縦は Ubuntu / Windows 共通で、コンテナに入って `ros2 run teleop_twist_keyboard teleop_twist_keyboard` を実行します (Windows は `teleop.bat` でも同じことができます)。
+- `docker compose` を直接使いたい場合の対応表は [DOCKER_GUIDE の早見表](docs/DOCKER_GUIDE.md#3-よく使うコマンド早見表) を参照してください。
+
+> ⚠️ Windows 用の設定・スクリプトは Windows 実機ではまだ動作確認していません。
 
 ---
 
@@ -109,7 +94,7 @@ source install/setup.bash
 ros2 launch diffbot_sim sim.launch.py
 ```
 
-別の端末 (ホストで `docker exec -it ubuntu_22_04_ros2 bash` などでもう 1 つコンテナに入る。Windows は `teleop.bat`) で操縦します。
+別の端末 (ホストで `src/docker/shell.sh` を実行してもう 1 つコンテナに入る。Windows は `shell.bat` または `teleop.bat`) で操縦します。
 
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
@@ -252,8 +237,9 @@ src/
 │   ├── docker-compose.windows.yml     … Windows (Docker Desktop + WSLg) 用
 │   ├── docker-compose.windows-gpu.yml … Windows で GPU を使う追加設定 (試験的)
 │   ├── entrypoint.sh
+│   ├── start.sh / shell.sh / stop.sh  … Ubuntu 用起動スクリプト
 │   └── windows/                 … Windows 用起動スクリプト
-│       ├── start.bat / start.ps1       … ビルド・起動・シミュレーション開始
+│       ├── start.bat / start.ps1       … ビルド・コンテナ起動 (バックグラウンド)
 │       ├── teleop.bat / teleop.ps1     … キーボード操縦
 │       ├── shell.bat / shell.ps1       … コンテナの bash を開く
 │       ├── stop.bat / stop.ps1         … 停止 (-Remove で削除)
@@ -297,7 +283,7 @@ src/
 
 | 症状 | 対処 |
 |---|---|
-| `Could not connect to display` / 画面が出ない | ホストで `xhost +local:` を実行してからコンテナを起動。コンテナ内で `echo $DISPLAY` が空でないか確認 |
+| `Could not connect to display` / 画面が出ない (Ubuntu) | `xhost +local:` は `start.sh` が実行するので、`start.sh` からやり直す。コンテナ内で `echo $DISPLAY` が空でないか確認 |
 | `Package 'diffbot_sim' not found` | `cd /ros2_ws && colcon build --symlink-install && source install/setup.bash` |
 | 終了後にもう一度起動するとロボットが 2 台 / 動作がおかしい | 前回の Gazebo が裏で残っている。`pkill -f "ign gazebo"` してから再起動 |
 | 動作が重い・カメラの周期が低い | GPU をコンテナに渡す (`docker-compose.yml` の `devices: /dev/dri`)。または `gui:=false` で起動 |

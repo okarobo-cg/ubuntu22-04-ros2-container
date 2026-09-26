@@ -1,20 +1,13 @@
 ﻿<#
 .SYNOPSIS
-  diffbot_sim を Windows (Docker Desktop) で起動する。
+  diffbot_sim の Docker コンテナを Windows (Docker Desktop) でバックグラウンド起動する。
 
 .DESCRIPTION
   1. Docker Desktop が動いているか確認
   2. イメージが無ければビルド (初回は 10 分程度)
-  3. コンテナを起動
-  4. コンテナ内で colcon build してシミュレーションを起動 (または bash を開く)
-
-.PARAMETER Launch
-  robocon : ABU Robocon 2027 フィールド (既定)
-  diffbot : 練習用ワールド
-  shell   : シミュレーションは起動せず、コンテナの bash を開く
-
-.PARAMETER Team
-  robocon のときのチーム (red / blue)。既定 red
+  3. コンテナをバックグラウンドで起動
+  起動後は shell.bat でコンテナに入り、コンテナの中で colcon build と ros2 launch を実行する
+  (Ubuntu 側と同じ手順。詳しくは README の「2. クイックスタート」を参照)。
 
 .PARAMETER Display
   wslg   : WSLg で GUI を表示 (既定。Windows 11 / WSL2 標準)
@@ -26,28 +19,16 @@
 .PARAMETER Build
   イメージを作り直す (Dockerfile を変更したとき)
 
-.PARAMETER NoRviz
-  RViz2 を起動しない (軽くしたいとき)
-
-.PARAMETER Headless
-  Gazebo の画面を出さない (GUI が出ないときの切り分け用)
-
 .EXAMPLE
   .\start.ps1
-  .\start.ps1 -Launch diffbot
-  .\start.ps1 -Team blue -NoRviz
-  .\start.ps1 -Launch shell
   .\start.ps1 -Display vcxsrv
   .\start.ps1 -Gpu
+  .\start.ps1 -Build
 #>
 param(
-    [ValidateSet('robocon', 'diffbot', 'shell')][string]$Launch = 'robocon',
-    [ValidateSet('red', 'blue')][string]$Team = 'red',
     [ValidateSet('wslg', 'vcxsrv')][string]$Display = 'wslg',
     [switch]$Gpu,
-    [switch]$Build,
-    [switch]$NoRviz,
-    [switch]$Headless
+    [switch]$Build
 )
 
 . (Join-Path $PSScriptRoot 'common.ps1')
@@ -71,38 +52,15 @@ try {
         Write-Ok "イメージ $Script:ImageName があります (作り直すときは -Build)"
     }
 
-    Write-Step 'コンテナを起動'
+    Write-Step 'コンテナをバックグラウンドで起動'
     # 設定 (-Gpu / -Display) が変わっていれば compose がコンテナを作り直す
     Invoke-Compose $compose @('up', '-d')
     Write-Ok "コンテナ $Script:Container が起動しました"
 
-    if ($Launch -eq 'shell') {
-        Write-Step 'コンテナの bash を開きます (exit で抜ける。コンテナは動いたまま)'
-        & docker @compose exec ros2 bash
-        exit 0
-    }
-
-    # コンテナ内で実行するコマンド (ダブルクォートを含めないこと: PowerShell 5.1 の引数渡しで壊れるため)
-    $rviz = if ($NoRviz) { 'false' } else { 'true' }
-    $gui  = if ($Headless) { 'false' } else { 'true' }
-    $launchCmd = switch ($Launch) {
-        'robocon' { "ros2 launch robocon2027_field robocon2027.launch.py team:=$Team rviz:=$rviz gui:=$gui" }
-        'diffbot' { "ros2 launch diffbot_sim sim.launch.py rviz:=$rviz gui:=$gui" }
-    }
-    # 最初に前回の Gazebo が残っていたら止める ([i] は pkill が自分自身にマッチしないための書き方。
-    # 該当なしで失敗してもよいので ; でつなぐ)
-    $cmd = "pkill -f '[i]gn gazebo' ; sleep 1 ; " + (@(
-        'source /opt/ros/humble/setup.bash',
-        'cd /ros2_ws',
-        'colcon build --symlink-install',
-        'source install/setup.bash',
-        $launchCmd
-    ) -join ' && ')
-
-    Write-Step "シミュレーションを起動: $launchCmd"
-    Write-Host '  終了するときはこの画面で Ctrl+C を押してください。'
-    Write-Host '  操縦するには、別の PowerShell で windows\teleop.bat (または teleop.ps1) を実行します。'
-    & docker @compose exec ros2 bash -c $cmd
+    Write-Host ''
+    Write-Host '次は shell.bat でコンテナに入り、中で以下を実行してください:'
+    Write-Host '  cd /ros2_ws && colcon build --symlink-install && source install/setup.bash'
+    Write-Host '  ros2 launch robocon2027_field robocon2027.launch.py'
 }
 catch {
     Write-Ng $_.Exception.Message
