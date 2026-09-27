@@ -29,7 +29,8 @@ git clone https://github.com/okarobo-cg/ubuntu22-04-ros2-container.git
 cd ubuntu22-04-ros2-container
 ```
 
-clone したフォルダ全体がコンテナ内の `/ros2_ws/src/ubuntu22-04-ros2-container` にマウントされ、ここに置いたファイルはコンテナを消しても残ります。フォルダ名や置き場所は自由です (Windows は WSL2 側のフォルダに置くとファイル共有が速くなります)。
+clone したフォルダ全体がコンテナ内の `/ros2_ws/src/ubuntu22-04-ros2-container` にマウントされ、ここに置いたファイルはコンテナを消しても残ります。フォルダ名や置き場所は自由です。
+ (Windows は WSL2 側のフォルダに置くとファイル共有が速くなります。 このとき、Docker Desktopの Settings → Resources → WSL Integrationから、WSL2 でリポジトリをクローンしたディストリビューションをオンにしてください )。![alt text](image.png)
 
 ### 1-2. 起動 (イメージのビルド → コンテナをバックグラウンド起動)
 
