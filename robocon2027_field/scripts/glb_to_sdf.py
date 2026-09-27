@@ -82,6 +82,8 @@ def load_glb(path):
 
     parts = []
     for node in gltf['nodes']:
+        if 'mesh' not in node:   # 空ノード (グループ等) は形状が無いので飛ばす
+            continue
         if 'matrix' in node or 'translation' in node or 'rotation' in node or 'scale' in node:
             sys.exit(f"ノード {node['name']} に変換行列があります (未対応)")
         prim = gltf['meshes'][node['mesh']]['primitives'][0]

@@ -1,0 +1,29 @@
+# =============================================================
+#  WSL2 (WSLg) 上の Docker で動かすための追加設定
+#  docker-compose.yml に重ねて使う (start.sh が /dev/dxg を見つけると自動で重ねる):
+#    docker compose -f docker-compose.yml -f docker-compose.wsl.yml up -d
+#
+#  Windows の Docker Desktop ではなく、WSL2 の Ubuntu に Docker Engine (docker-ce) を入れて使う場合の設定。
+#  - GUI は WSLg で表示する (xhost は不要)
+#  - GPU は /dev/dxg + /usr/lib/wsl の D3D12 ドライバ (Mesa d3d12) で使う
+#  - !override を使うので Docker Compose v2.24.4 以降が必要
+# =============================================================
+services:
+  ros2:
+    environment:
+      - WAYLAND_DISPLAY=wayland-0
+      - XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir
+      - PULSE_SERVER=/mnt/wslg/PulseServer
+      - LD_LIBRARY_PATH=/usr/lib/wsl/lib
+      # D3D12 ドライバは OpenGL 4.2 までしか名乗らないが、Gazebo (Ogre2) のカメラ / LiDAR は
+      # 4.3 の機能 (glCopyImageSubData) を使うため、無いと UnimplementedException で落ちる。
+      # 4.3 と名乗らせると Mesa 側で処理できるので動く。
+      - MESA_GL_VERSION_OVERRIDE=4.3
+      # GPU が複数ある PC (ノート PC など) で使う GPU を選ぶときはコメントを外す
+      #- MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA
+    volumes:
+      - /mnt/wslg:/mnt/wslg                # WSLg
+      - /usr/lib/wsl:/usr/lib/wsl          # WSL の GPU ドライバ (D3D12)
+    # WSL2 には /dev/dri が無いので /dev/dxg に差し替える
+    devices: !override
+      - /dev/dxg:/dev/dxg

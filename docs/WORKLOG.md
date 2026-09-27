@@ -3,9 +3,12 @@
 diffbot_sim 環境を作ったときの作業内容と、実行したコマンドの記録です。
 同じ手順をたどれば同じ環境を再現できます。
 
-- 作業日: 2026-09-25
+- 作業日: 2026-09-25 (13 章は 2026-09-27)
 - 作業場所: Docker コンテナ内 (`root`, 作業ディレクトリ `/ros2_ws`)
 - 作成ファイルはすべて `/ros2_ws/src/` (ホストと共有されるフォルダ) 以下
+
+> 0〜12 章は作業当時の記録なので、パスやマウント構成は当時のもの (`src/ config/ models/ worlds/` を個別にマウント) です。
+> 現在はリポジトリ全体を `/ros2_ws/src/ubuntu22-04-ros2-container` にマウントし、コンテナ内は一般ユーザ `okarobo` です (13 章)。
 
 ---
 
@@ -442,15 +445,58 @@ Docker 自体のインストール手順は省略 (入っている前提)。
 
 ---
 
+## 13. マウント構成・実行ユーザの変更と WSL2 対応
+
+### 13-1. リポジトリ全体をマウント / 一般ユーザ `okarobo`
+
+- リポジトリ全体を `/ros2_ws/src/ubuntu22-04-ros2-container` にマウントするよう変更 (clone 先を `src` という名前にする必要がなくなった)。
+- コンテナ内を一般ユーザ `okarobo` に変更。UID/GID は `start.sh` がホストに合わせて渡す (`HOST_UID` / `HOST_GID`)。`/dev/dri` 用に `video` / `render` グループを `group_add`。
+- `start.sh` / `shell.sh` / `stop.sh` を追加。
+
+### 13-2. WSL2 の Ubuntu (docker-ce) で GPU 描画
+
+WSL2 の Ubuntu で `start.sh` を実行したときに起きた問題と対処:
+
+| 症状 | 原因 | 対処 |
+|---|---|---|
+| `permission denied ... /var/run/docker.sock` | ユーザが `docker` グループに入っていない | `sudo usermod -aG docker $USER` → `newgrp docker` |
+| `error gathering device information while adding custom device "/dev/dri"` | WSL2 には `/dev/dri` が無い (GPU は `/dev/dxg`) | `docker-compose.wsl.yml` を追加し、`devices: !override` で `/dev/dxg` に差し替え |
+| Gazebo が `OGRE EXCEPTION(9:UnimplementedException) ... GL3PlusTextureGpu::copyTo` で落ち、launch 全体 (RViz も) が終了 | Mesa の D3D12 ドライバは OpenGL 4.2 まで。Ogre2 のテクスチャコピー (カメラ・LiDAR で使う) は 4.3 の `glCopyImageSubData` が必要 | `MESA_GL_VERSION_OVERRIDE=4.3` |
+
+確認:
+
+```bash
+# コンテナ内
+glxinfo -B | grep -E "renderer|version"
+# → OpenGL renderer string: D3D12 (NVIDIA GeForce RTX 5060 Ti)
+#   OpenGL core profile version string: 4.2 (Core Profile) Mesa 23.2.1
+rviz2                                                        # GPU のまま起動する
+MESA_GL_VERSION_OVERRIDE=4.3 ros2 launch diffbot_sim sim.launch.py   # Gazebo も落ちない
+```
+
+変更したファイル:
+
+| ファイル | 変更 |
+|---|---|
+| `docker/docker-compose.wsl.yml` | 新規。WSLg (`/mnt/wslg`)、`/usr/lib/wsl`、`/dev/dxg`、`MESA_GL_VERSION_OVERRIDE=4.3` |
+| `docker/start.sh` | `/dev/dxg` があれば `COMPOSE_FILE=docker-compose.yml:docker-compose.wsl.yml` にする |
+| `docker/docker-compose.windows-gpu.yml` | Docker Desktop の `-Gpu` も同じ D3D12 なので `MESA_GL_VERSION_OVERRIDE=4.3` を追加 |
+| `docker/Dockerfile` | `mesa-utils` (glxinfo) と `python3-numpy` を明示的に追加 |
+| `diffbot_sim/scripts/lidar_body_filter.py` | 出力 `/lidar/points` の QoS を Reliable に (Reliable を要求する subscriber との QoS 不一致の警告を解消) |
+
+---
+
 ## 最終的なファイル構成
 
 ```
-/ros2_ws/src/
+<リポジトリ> (= /ros2_ws/src/ubuntu22-04-ros2-container)
 ├── README.md
 ├── docs/{DOCKER_GUIDE.md, WORKLOG.md, COLCON_IGNORE}
-├── .gitattributes
+├── .gitattributes, .gitignore
 ├── docker/
 │   ├── Dockerfile, docker-compose.yml, entrypoint.sh, COLCON_IGNORE
+│   ├── start.sh, shell.sh, stop.sh
+│   ├── docker-compose.wsl.yml
 │   ├── docker-compose.windows.yml, docker-compose.windows-gpu.yml
 │   └── windows/{start,teleop,shell,stop,check_env}.{bat,ps1}, common.ps1
 ├── robocon2027_field/
@@ -465,18 +511,16 @@ Docker 自体のインストール手順は省略 (入っている前提)。
     ├── worlds/diffbot_world.sdf
     ├── config/bridge.yaml
     ├── rviz/diffbot.rviz
+    ├── scripts/lidar_body_filter.py
     └── launch/sim.launch.py
 ```
 
 ## ゼロから再現する手順 (まとめ)
 
 ```bash
-# ホスト
-cd <プロジェクト>/src/docker
-xhost +local:
-docker compose build
-docker compose up -d
-docker compose exec ros2 bash
+# ホスト (Ubuntu / WSL2 の Ubuntu)
+docker/start.sh      # xhost・ビルド・起動 (WSL2 は自動判定)
+docker/shell.sh      # コンテナに入る
 
 # コンテナ内
 cd /ros2_ws
@@ -485,8 +529,8 @@ source install/setup.bash
 ros2 launch diffbot_sim sim.launch.py
 ros2 launch robocon2027_field robocon2027.launch.py   # Robocon 2027 フィールド (赤スタート)
 
-# 別端末 (docker compose exec ros2 bash で入る)
+# 別端末 (docker/shell.sh で入る)
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
 ```
 
-Windows の場合: `src\docker\windows\start.bat` をダブルクリック → 操縦は `teleop.bat` (詳細は DOCKER_GUIDE の 6 章)。
+Windows の場合: `docker\windows\start.bat` をダブルクリック → 操縦は `teleop.bat` (詳細は DOCKER_GUIDE の 6 章)。

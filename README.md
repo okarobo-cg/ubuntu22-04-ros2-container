@@ -61,6 +61,7 @@ clone したフォルダ全体がコンテナ内の `/ros2_ws/src/ubuntu22-04-ro
 ### 補足
 
 - GPU (`/dev/dri`) が無い Ubuntu PC では、`docker/docker-compose.yml` の `devices:` の 2 行をコメントアウトしてください (CPU 描画で動きます)。
+- WSL2 の Ubuntu に Docker Engine を入れて使う場合も `docker/start.sh` で起動します。WSL2 だと自動で判定し、WSLg での表示と GPU 描画 (`/dev/dxg`) の設定を使います ([DOCKER_GUIDE の 7 章](docs/DOCKER_GUIDE.md#7-wsl2-の-ubuntu-で動かす))。
 - Windows は WSL2 (Windows 11 推奨) + Docker Desktop が必要です。GUI は WSLg で表示されるので `xhost` は不要です。準備手順やオプション (`-Gpu` / `-Display vcxsrv` / `-Build`)、トラブル対応は [DOCKER_GUIDE の 6 章](docs/DOCKER_GUIDE.md#6-windows-で動かす) を参照してください。
 - キーボード操縦は Ubuntu / Windows 共通で、コンテナに入って `ros2 run teleop_twist_keyboard teleop_twist_keyboard` を実行します (Windows は `teleop.bat` でも同じことができます)。
 - `docker compose` を直接使いたい場合の対応表は [DOCKER_GUIDE の早見表](docs/DOCKER_GUIDE.md#3-よく使うコマンド早見表) を参照してください。
@@ -224,6 +225,7 @@ ubuntu22-04-ros2-container/
 ├── docker/
 │   ├── Dockerfile               … 環境を再現するイメージ定義
 │   ├── docker-compose.yml       … コンテナ起動設定 (Linux 用: GUI・マウント・GPU)
+│   ├── docker-compose.wsl.yml   … WSL2 の Ubuntu で使う追加設定 (start.sh が自動で重ねる)
 │   ├── docker-compose.windows.yml     … Windows (Docker Desktop + WSLg) 用
 │   ├── docker-compose.windows-gpu.yml … Windows で GPU を使う追加設定 (試験的)
 │   ├── entrypoint.sh
@@ -235,15 +237,16 @@ ubuntu22-04-ros2-container/
 │       ├── stop.bat / stop.ps1         … 停止 (-Remove で削除)
 │       ├── check_env.bat / check_env.ps1 … 環境チェック
 │       └── common.ps1                  … 共通処理
-└── diffbot_sim/                 … ROS 2 パッケージ本体
-    ├── package.xml / CMakeLists.txt
-    ├── urdf/
-    │   ├── diffbot.urdf.xacro   … ロボットの形・関節 (寸法はここの property を変える)
-    │   └── diffbot.gazebo.xacro … Gazebo 用: センサ・DiffDrive プラグイン
-    ├── worlds/diffbot_world.sdf … ワールド
-    ├── config/bridge.yaml       … Gazebo ⇔ ROS 2 のトピック対応表
-    ├── rviz/diffbot.rviz        … RViz2 の表示設定
-    └── launch/sim.launch.py     … 全部まとめて起動
+├── diffbot_sim/                 … ROS 2 パッケージ本体
+│   ├── package.xml / CMakeLists.txt
+│   ├── urdf/
+│   │   ├── diffbot.urdf.xacro   … ロボットの形・関節 (寸法はここの property を変える)
+│   │   └── diffbot.gazebo.xacro … Gazebo 用: センサ・DiffDrive プラグイン
+│   ├── worlds/diffbot_world.sdf … ワールド
+│   ├── config/bridge.yaml       … Gazebo ⇔ ROS 2 のトピック対応表
+│   ├── rviz/diffbot.rviz        … RViz2 の表示設定
+│   ├── scripts/lidar_body_filter.py … LiDAR 点群から車体の点を除く
+│   └── launch/sim.launch.py     … 全部まとめて起動
 └── robocon2027_field/           … ABU Robocon 2027 フィールド
     ├── README.md
     ├── glb/robocon2027_field_props.glb  … 元のフィールドモデル
@@ -258,13 +261,13 @@ ubuntu22-04-ros2-container/
 
 | やりたいこと | 編集するファイル |
 |---|---|
-| 車体・車輪の寸法を変える | `urdf/diffbot.urdf.xacro` の `xacro:property` (DiffDrive にも自動反映) |
+| 車体・車輪の寸法を変える | `urdf/diffbot.urdf.xacro` の `xacro:property` (DiffDrive にも自動反映)。車体を変えたら `lidar_body_filter.py` の除去範囲と、Robocon フィールドを使うなら `check_robot_size.py` の結果も見直す |
 | センサの解像度・周期・画角を変える | `urdf/diffbot.gazebo.xacro` |
 | センサを増やす | 両 xacro にリンクとセンサを追加 → `config/bridge.yaml` にトピックを追加 |
 | 障害物を置く | `worlds/diffbot_world.sdf` に `<model>` を追加 |
 | RViz の表示を保存したい | RViz で「File → Save Config As」→ `rviz/diffbot.rviz` に上書き |
 
-`--symlink-install` でビルドしているので、urdf / world / yaml / launch の編集は **再ビルド不要** (launch し直すだけ) です。
+`--symlink-install` でビルドしているので、urdf / world / yaml / launch / scripts の編集は **再ビルド不要** (launch し直すだけ) です。
 新しいファイルやディレクトリを追加したときは `colcon build --symlink-install` をやり直してください。
 
 ---
@@ -276,8 +279,11 @@ ubuntu22-04-ros2-container/
 | `Could not connect to display` / 画面が出ない (Ubuntu) | `xhost +local:` は `start.sh` が実行するので、`start.sh` からやり直す。コンテナ内で `echo $DISPLAY` が空でないか確認 |
 | `Package 'diffbot_sim' not found` | `cd /ros2_ws && colcon build --symlink-install && source install/setup.bash` |
 | 終了後にもう一度起動するとロボットが 2 台 / 動作がおかしい | 前回の Gazebo が裏で残っている。`pkill -f "ign gazebo"` してから再起動 |
-| 動作が重い・カメラの周期が低い | GPU をコンテナに渡す (`docker-compose.yml` の `devices: /dev/dri`)。または `gui:=false` で起動 |
+| 動作が重い・カメラの周期が低い | GPU をコンテナに渡す (`docker-compose.yml` の `devices: /dev/dri`)。または `gui:=false` で起動。GPU 描画になっているかはコンテナ内で `glxinfo -B` の `OpenGL renderer string` を見る (`llvmpipe` なら CPU 描画) |
+| `error gathering device information ... "/dev/dri"` で起動しない | その PC に `/dev/dri` が無い。WSL2 なら `start.sh` から起動し直す (自動で `/dev/dxg` を使う)。それ以外は `devices:` の 2 行をコメントアウト |
+| Gazebo が `OGRE EXCEPTION ... GL3PlusTextureGpu::copyTo` で落ち、RViz も一緒に閉じる | WSL2 の GPU (D3D12) が OpenGL 4.2 までのため。`MESA_GL_VERSION_OVERRIDE=4.3` が必要 (`docker-compose.wsl.yml` / `-Gpu` に設定済み)。Gazebo が落ちると launch 全体が終了する仕様 |
 | `amdgpu: drmGetDevice2 failed` と出る | GPU がコンテナに渡っていない (CPU 描画で動作はする)。上と同じく `/dev/dri` を渡す |
-| RViz に点群・画像が出ない | Fixed Frame が `odom` か確認。`ros2 topic hz /lidar/points` でデータが来ているか確認 |
+| RViz に点群・画像が出ない | Fixed Frame が `odom` か確認 (Robocon フィールドでは `map` も可)。`ros2 topic hz /lidar/points` でデータが来ているか確認 |
+| `docker/start.sh: Permission denied` | 実行権限が外れている (zip でコピーした場合など)。`chmod +x docker/*.sh` するか `bash docker/start.sh` で実行 |
 | ロボットが止まらない | `/cmd_vel` は最後の指令を保持する。`ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist "{}"` |
 | 別 PC の ROS 2 と混信する | `export ROS_DOMAIN_ID=<0-101 の好きな数字>` を人ごとに変える |

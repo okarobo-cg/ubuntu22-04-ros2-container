@@ -13,6 +13,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 #  - ros-humble-rviz2         : 可視化
 #  - ros-humble-rqt-image-view: カメラ画像の確認
 #  - ros-humble-teleop-twist-keyboard : キーボード操縦
+#  - python3-numpy            : lidar_body_filter.py で使う
+#  - mesa-utils               : glxinfo (GPU 描画になっているかの確認用)
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-ros-gz \
       ros-humble-xacro \
@@ -21,6 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-rqt-image-view \
       ros-humble-teleop-twist-keyboard \
       python3-colcon-common-extensions \
+      python3-numpy \
+      mesa-utils \
       vim nano git sudo \
     && rm -rf /var/lib/apt/lists/*
 

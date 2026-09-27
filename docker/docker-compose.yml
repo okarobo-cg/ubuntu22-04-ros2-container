@@ -3,12 +3,16 @@
 #
 #  このファイルはリポジトリの docker/ にある。リポジトリ全体を /ros2_ws/src/ubuntu22-04-ros2-container にマウントする。
 #
-#  使い方 (ホストで, このディレクトリに移動して):
+#  通常は start.sh / shell.sh / stop.sh から使う。直接使う場合 (ホストで, このディレクトリに移動して):
 #    xhost +local:            # GUI 表示を許可 (ホスト再起動ごとに 1 回)
 #    docker compose build     # イメージ作成 (初回のみ / Dockerfile 変更時)
 #    docker compose up -d     # コンテナ起動 (バックグラウンド)
 #    docker compose exec ros2 bash   # コンテナに入る (端末を増やすときも同じ)
 #    docker compose down      # コンテナ停止・削除
+#  ※ start.sh を使わない場合、UID/GID は既定の 1000 になる (DOCKER_GUIDE 5 章)
+#
+#  WSL2 の Ubuntu では docker-compose.wsl.yml を重ねて使う (start.sh が /dev/dxg を見て自動で判定):
+#    docker compose -f docker-compose.yml -f docker-compose.wsl.yml up -d
 # =============================================================
 services:
   ros2:
@@ -32,6 +36,7 @@ services:
       - ..:/ros2_ws/src/ubuntu22-04-ros2-container
     # GPU (Intel / AMD) を使って描画を高速化する。
     # /dev/dri が無い PC ではこの 2 行をコメントアウトする (CPU 描画になるが動作はする)。
+    # WSL2 では docker-compose.wsl.yml が /dev/dxg に差し替える。
     devices:
       - /dev/dri:/dev/dri
     # /dev/dri を一般ユーザで使うためのグループ (start.sh がホストの GID を渡す)

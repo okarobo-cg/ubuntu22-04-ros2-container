@@ -36,7 +36,7 @@ Docker に慣れていない人向けに、この環境を動かすのに必要�
 ```bash
 # 公式の手順: https://docs.docker.com/engine/install/ubuntu/
 curl -fsSL https://get.docker.com | sh
-# sudo なしで docker を使えるようにする (実行後、一度ログアウト→ログイン)
+# sudo なしで docker を使えるようにする (実行後、一度ログアウト→ログインするか newgrp docker)
 sudo usermod -aG docker $USER
 ```
 
@@ -51,7 +51,7 @@ clone したフォルダ全体がコンテナ内の `/ros2_ws/src/ubuntu22-04-ro
 
 ### 2-3. 起動して入る
 
-`docker/` のスクリプトが、フォルダ作成・イメージのビルド・コンテナ起動をまとめてやってくれます。`docker` コマンドを自分で打つ必要はありません。
+`docker/` のスクリプトが、GUI 表示の許可・イメージのビルド・コンテナ起動をまとめてやってくれます。`docker` コマンドを自分で打つ必要はありません。
 
 ```bash
 docker/start.sh    # 初回はイメージのビルドで 10 分ほど。以降はコンテナ起動のみ (数秒)
@@ -101,12 +101,14 @@ ros2 run teleop_twist_keyboard teleop_twist_keyboard
 `docker compose` を使わない場合の同等コマンド (参考):
 
 ```bash
-docker build -t diffbot_sim:humble <リポジトリ>/docker
+docker build -t diffbot_sim:humble \
+  --build-arg USER_UID=$(id -u) --build-arg USER_GID=$(id -g) <リポジトリ>/docker
 docker run -it --name ubuntu_22_04_ros2 --net=host --ipc=host \
   -e DISPLAY=$DISPLAY -e QT_X11_NO_MITSHM=1 \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
   -v <リポジトリ>:/ros2_ws/src/ubuntu22-04-ros2-container \
   --device /dev/dri \
+  --group-add $(getent group video | cut -d: -f3) --group-add $(getent group render | cut -d: -f3) \
   diffbot_sim:humble bash
 # 2 枚目以降の端末: docker exec -it ubuntu_22_04_ros2 bash
 ```
@@ -121,6 +123,7 @@ docker run -it --name ubuntu_22_04_ros2 --net=host --ipc=host \
 | `ipc: host` | 共有メモリをホストと共有。ROS 2 や GUI が安定する |
 | `DISPLAY`, `/tmp/.X11-unix` | コンテナの GUI (Gazebo, RViz) をホストの画面に表示する |
 | `devices: /dev/dri` | GPU (Intel / AMD) を使う。無いと CPU 描画になり重い |
+| `group_add` | 一般ユーザ `okarobo` が `/dev/dri` を使えるよう、ホストの `video` / `render` グループに入れる |
 | `volumes` | ホストのフォルダを共有 (ここに置いたファイルは消えない) |
 
 ### GPU について
@@ -138,9 +141,13 @@ docker run -it --name ubuntu_22_04_ros2 --net=host --ipc=host \
       environment:
         - NVIDIA_DRIVER_CAPABILITIES=all
   ```
+- **WSL2**: `/dev/dri` の代わりに `/dev/dxg` を使います (7 章)。
 - GPU を渡さなくても動作はします (実測: LiDAR 約 9 Hz、カメラ 約 13 Hz)。
 
-確認方法 (コンテナ内): `ls /dev/dri` で `card0` や `renderD128` が見えれば GPU が渡っています。
+確認方法 (コンテナ内):
+
+- `ls /dev/dri` で `card0` や `renderD128` が見えれば GPU が渡っています (WSL2 は `ls /dev/dxg`)。
+- `glxinfo -B` の `OpenGL renderer string` が GPU 名 (WSL2 は `D3D12 (...)`) なら GPU 描画、`llvmpipe` なら CPU 描画です。
 
 ---
 
@@ -265,8 +272,41 @@ Get-Help .\start.ps1 -Detailed     # オプションの説明
 | ビルドで `no matching manifest` / Windows コンテナの話が出る | タスクトレイの Docker アイコン → **Switch to Linux containers** |
 | コンテナがすぐ終了し `exec /entrypoint.sh: no such file or directory` | `entrypoint.sh` が CRLF。Dockerfile で自動変換しているので `start.bat -Build` で作り直す |
 | Gazebo / RViz の画面が出ない (`could not connect to display`) | `wsl --update` して PC を再起動 → `check_env.bat` で「WSLg の X11 ソケットが見えます」を確認。ダメなら VcXsrv を入れて XLaunch を「Disable access control」にチェックして起動し、`start.bat -Display vcxsrv` |
-| 画面は出るが真っ黒・すぐ落ちる (`-Gpu` 使用時) | `-Gpu` を外す (CPU 描画) |
+| 画面は出るが真っ黒・すぐ落ちる (`-Gpu` 使用時) | `-Gpu` を外す (CPU 描画)。`OGRE EXCEPTION ... copyTo` で落ちる問題は `MESA_GL_VERSION_OVERRIDE=4.3` で対策済み (7 章) |
 | 動作がとても重い | `ros2 launch ... rviz:=false` (RViz を出さない)、または `-Gpu` を試す。ノート PC は電源につなぐ |
 | `.ps1` を直接実行すると「スクリプトの実行が無効」 | `.bat` の方を使う。または `powershell -ExecutionPolicy Bypass -File .\start.ps1` |
 | 日本語が文字化けする | Windows Terminal か PowerShell 7 を使う (スクリプトは UTF-8 BOM 付きで保存済み) |
 | 前回の Gazebo が残って動作がおかしい | コンテナ内で `pkill -f "ign gazebo"` してから launch し直す。それでもダメなら `stop.bat` → `start.bat` |
+
+---
+
+## 7. WSL2 の Ubuntu で動かす
+
+Windows の Docker Desktop ではなく、WSL2 の Ubuntu に Docker Engine (docker-ce) を入れて使う場合です。
+手順は Ubuntu と同じで、`docker/start.sh` → `docker/shell.sh` を使います。
+
+`start.sh` は `/dev/dxg` (WSL2 の GPU デバイス) を見つけると WSL2 と判定し、
+[docker-compose.wsl.yml](../docker/docker-compose.wsl.yml) を重ねて起動します。
+
+| 項目 | 設定 |
+|---|---|
+| GUI | WSLg (`/mnt/wslg` をマウント)。`xhost` は不要 |
+| GPU | `/dev/dri` を `/dev/dxg` に差し替え、`/usr/lib/wsl` の D3D12 ドライバを使う |
+| `MESA_GL_VERSION_OVERRIDE=4.3` | D3D12 ドライバは OpenGL 4.2 までしか名乗らない。Gazebo (Ogre2) のカメラ・LiDAR は 4.3 の機能を使うため、これが無いと Gazebo が落ちる |
+| `MESA_D3D12_DEFAULT_ADAPTER_NAME` | GPU が複数ある PC で使う GPU を選ぶ (既定はコメントアウト) |
+
+`docker compose` を直接使う場合は、2 つのファイルを指定します (`!override` を使うので Docker Compose v2.24.4 以降が必要)。
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.wsl.yml up -d
+```
+
+### 7-1. うまくいかないとき
+
+| 症状 | 対処 |
+|---|---|
+| `permission denied while trying to connect to the docker API` | ユーザが `docker` グループに入っていない。`sudo usermod -aG docker $USER` → `newgrp docker` (または WSL を開き直す) |
+| `error gathering device information ... "/dev/dri"` | WSL2 用の設定が重なっていない。`docker compose down` してから `start.sh` で起動し直す |
+| Gazebo が `OGRE EXCEPTION(9:UnimplementedException) ... GL3PlusTextureGpu::copyTo` で落ちる | `MESA_GL_VERSION_OVERRIDE=4.3` が効いていない。コンテナ内で `echo $MESA_GL_VERSION_OVERRIDE` を確認 |
+| GPU 描画になっているか確認したい | コンテナ内で `glxinfo -B`。`OpenGL renderer string` が `D3D12 (...)` なら GPU、`llvmpipe` なら CPU 描画 |
+| GPU だと描画がおかしい | `docker-compose.wsl.yml` の environment に `- LIBGL_ALWAYS_SOFTWARE=1` を足すと CPU 描画になる (確実に動くが重い) |

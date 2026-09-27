@@ -92,6 +92,7 @@ ros2 run robocon2027_field check_robot_size.py <xacro ファイル>  # 別のロ
 現在の diffbot: 長さ 455 mm × 幅 390 mm × 高さ 200 mm、6.5 kg → **ルール内**
 (外形の中心は base_footprint より 27.5 mm 前。この値は `launch/robocon2027.launch.py` の `ROBOT_CENTER_OFFSET` で使用)
 
+※ collision 形状 (box / cylinder / sphere) から計算します。mesh の collision は対象外 (警告が出ます)。
 ※ 伸縮機構の最大展開寸法 (11.5 / 11.6: 1000 × 1400 × 1200 mm) は対象外。
 
 ## 既知の問題
@@ -99,7 +100,7 @@ ros2 run robocon2027_field check_robot_size.py <xacro ファイル>  # 別のロ
 - **diffbot はスロープを登れない**: スロープ下端 (y ≈ 3.0 m) で前キャスターが乗り上げたところで止まり、その後向きが乱れて側面に落ちる。スロープ自体の当たり判定は正しいことを確認済み (物体を落として表面高さを測定)。原因として「前後キャスター配置のため前キャスターが持ち上がると駆動輪の荷重が抜ける」ことを疑い、キャスターを 3 mm 浮かせる対策を試したが改善しなかったため、元に戻した。未解決。
 - 階段 (1 段 150 mm) は車輪半径 50 mm の diffbot では登れない (仕様)。
 - **Ctrl+C で終了すると Gazebo が裏で残ることがある**: `pkill -f "ign gazebo"` で止める。
-- 実測 (GPU なし・CPU 描画): リアルタイム比 約 0.75～0.8、LiDAR 約 7 Hz、前方カメラ 約 9 Hz。GPU をコンテナに渡すと改善が見込める。
+- 実測 (GPU なし・CPU 描画): リアルタイム比 約 0.75～0.8、LiDAR 約 7 Hz、前方カメラ 約 9 Hz。GPU をコンテナに渡すと改善が見込める (WSL2 は [DOCKER_GUIDE の 7 章](../docs/DOCKER_GUIDE.md#7-wsl2-の-ubuntu-で動かす))。
 - カメラに写る色はルールブックの RGB 値より淡い (環境光が強めのため)。例: 赤スタートゾーン (223, 34, 34) → 下向きカメラでは約 (227, 96, 96)。色相 (赤/青の区別) は保たれるので、色検知は RGB の固定値ではなく HSV の色相で判定するのがおすすめ。
 - DiffDrive は最後の `/cmd_vel` を保持し続ける。止めるときは速度 0 を送ること。
 

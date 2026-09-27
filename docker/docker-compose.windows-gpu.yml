@@ -5,7 +5,10 @@
 #  WSL2 の GPU (/dev/dxg) と D3D12 ドライバ (/usr/lib/wsl) をコンテナに渡し、
 #  Mesa の d3d12 ドライバで OpenGL を GPU 実行する。
 #  GPU が複数ある PC では MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA などを environment に追加すると選べる。
-#  うまく動かない (画面が黒い・Gazebo が落ちる) ときは -Gpu なし (CPU 描画) で使う。
+#  D3D12 は OpenGL 4.2 までしか名乗らないため、Gazebo のカメラ / LiDAR (Ogre2) が 4.3 の機能を使うと
+#  UnimplementedException (GL3PlusTextureGpu::copyTo) で落ちる。MESA_GL_VERSION_OVERRIDE=4.3 で回避する
+#  (同じ設定を WSL2 の Ubuntu 用 docker-compose.wsl.yml で動作確認済み)。
+#  それでもうまく動かない (画面が黒い・Gazebo が落ちる) ときは -Gpu なし (CPU 描画) で使う。
 # =============================================================
 services:
   ros2:
@@ -16,3 +19,4 @@ services:
     environment:
       - LD_LIBRARY_PATH=/usr/lib/wsl/lib
       - GALLIUM_DRIVER=d3d12
+      - MESA_GL_VERSION_OVERRIDE=4.3

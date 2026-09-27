@@ -5,13 +5,18 @@
 出力 : /lidar/points     (車体の点を除いた点群。RViz や他のノードはこちらを使う)
 
 ボックスは点群の frame (lidar_link) 基準で、この範囲に入る点を捨てる。
-既定値は車体 0.40 x 0.30 x 0.10 m + 余裕 0.02 m (LiDAR は車体上面の 0.025 m 上)。
+既定値は車体 0.40 x 0.30 x 0.10 m + 余裕 0.02 m (LiDAR の中心は車体上面の 0.025 m 上)。
+車体の寸法を変えたら、パラメータ x_min ... z_max も合わせて変えること。
+
+QoS: 入力は sensor_data (Best Effort)。出力は Reliable にしてある。
+     Reliable の publisher には Best Effort / Reliable どちらの subscriber もつながるので、
+     RViz や ros2 topic echo などを QoS を気にせず使える。
 """
 
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import QoSProfile, qos_profile_sensor_data
 from sensor_msgs.msg import PointCloud2
 
 
@@ -32,7 +37,7 @@ class LidarBodyFilter(Node):
         self.hi = np.array([p('x_max').value, p('y_max').value, p('z_max').value])
 
         self.pub = self.create_publisher(
-            PointCloud2, p('output_topic').value, qos_profile_sensor_data)
+            PointCloud2, p('output_topic').value, QoSProfile(depth=5))  # Reliable
         self.create_subscription(
             PointCloud2, p('input_topic').value, self.on_cloud, qos_profile_sensor_data)
 
