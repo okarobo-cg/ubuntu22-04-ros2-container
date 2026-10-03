@@ -5,6 +5,9 @@
 FROM ros:humble-ros-base-jammy
 
 ENV DEBIAN_FRONTEND=noninteractive
+# プロンプトの絵文字を正しく表示するため UTF-8 にする
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 # シミュレーションに必要なパッケージ
 #  - ros-humble-ros-gz        : Gazebo Fortress 本体 + ROS 2 連携 (ros_gz_sim, ros_gz_bridge)
@@ -48,6 +51,14 @@ USER okarobo
 WORKDIR /ros2_ws
 RUN echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc \
  && echo 'if [ -f /ros2_ws/install/setup.bash ]; then source /ros2_ws/install/setup.bash; fi' >> ~/.bashrc
+
+# カラープロンプト: okarobo(蛍光オレンジ) 🤖 パス(蛍光水色) / 改行 / >(蛍光水色)
+# /bin/sh の echo は \n や \e を変換してしまうので printf '%s\n' でそのまま書き込む
+RUN printf '%s\n' \
+      '' \
+      '# custom prompt' \
+      'PS1="\[\e[1;38;5;208m\]\u\[\e[0m\] 🤖 \[\e[1;38;5;51m\]\w\[\e[0m\]\n\[\e[1;38;5;51m\]>\[\e[0m\] "' \
+      >> ~/.bashrc
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["bash"]
