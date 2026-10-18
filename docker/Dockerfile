@@ -14,8 +14,9 @@ ENV LC_ALL=C.UTF-8
 #  - ros-humble-xacro         : URDF マクロ展開
 #  - ros-humble-robot-state-publisher
 #  - ros-humble-rviz2         : 可視化
-#  - ros-humble-rqt-image-view: カメラ画像の確認
+#  - ros-humble-rqt-*         : rqt_graph / rqt_plot / rqt_tf_tree / rqt_image_view (ノード・値・TF・画像の確認)
 #  - ros-humble-teleop-twist-keyboard : キーボード操縦
+#  - libpcl-dev, ros-humble-pcl-conversions, ros-humble-pcl-ros : 点群 (PCL) 処理
 #  - python3-numpy            : lidar_body_filter.py で使う
 #  - mesa-utils               : glxinfo (GPU 描画になっているかの確認用)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -23,8 +24,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ros-humble-xacro \
       ros-humble-robot-state-publisher \
       ros-humble-rviz2 \
+      ros-humble-rqt-graph \
+      ros-humble-rqt-plot \
+      ros-humble-rqt-tf-tree \
       ros-humble-rqt-image-view \
       ros-humble-teleop-twist-keyboard \
+      libpcl-dev \
+      ros-humble-pcl-conversions \
+      ros-humble-pcl-ros \
       python3-colcon-common-extensions \
       python3-numpy \
       mesa-utils \
@@ -34,23 +41,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # 一般ユーザ okarobo (sudo はパスワードなしで使える)。
 # UID/GID はホストのユーザに合わせる (start.sh が渡す。既定 1000)。
 # こうするとマウントしたフォルダのファイルがホスト側でも自分の所有になる。
+#
+# ワークスペースは ~/ws 以下に置く (ホストの <リポジトリ>/../workspaces をマウント)。
+#   ~/ws/ros2_ws  : メイン。src/ubuntu22-04-ros2-container にこのリポジトリをマウント
+#   ~/ws/<名前>_ws : 別ワークスペースにしたいもの (自分で作る)
+# 先に作っておく (無いとマウント時に root 所有で作られ、colcon build できない)。
+# /ros2_ws は従来のパスで使えるよう ~/ws/ros2_ws へのリンクにする。
 ARG USER_UID=1000
 ARG USER_GID=1000
 RUN groupadd --gid ${USER_GID} okarobo \
  && useradd --uid ${USER_UID} --gid ${USER_GID} --groups video --create-home --shell /bin/bash okarobo \
  && echo 'okarobo ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/okarobo \
  && chmod 0440 /etc/sudoers.d/okarobo \
- && mkdir -p /ros2_ws && chown okarobo:okarobo /ros2_ws
+ && mkdir -p /home/okarobo/ws/ros2_ws/src/ubuntu22-04-ros2-container \
+ && chown -R okarobo:okarobo /home/okarobo/ws \
+ && ln -s /home/okarobo/ws/ros2_ws /ros2_ws
 
 COPY entrypoint.sh /entrypoint.sh
+COPY ws_setup.bash /opt/ws_setup.bash
 # Windows で clone すると改行が CRLF になり "bash\r: No such file" で起動しなくなるので LF に直す
-RUN sed -i 's/\r$//' /entrypoint.sh \
+RUN sed -i 's/\r$//' /entrypoint.sh /opt/ws_setup.bash \
  && chmod +x /entrypoint.sh
 
 USER okarobo
-WORKDIR /ros2_ws
-RUN echo 'source /opt/ros/humble/setup.bash' >> ~/.bashrc \
- && echo 'if [ -f /ros2_ws/install/setup.bash ]; then source /ros2_ws/install/setup.bash; fi' >> ~/.bashrc
+WORKDIR /home/okarobo/ws/ros2_ws
+# ROS 2 と ~/ws 以下の全ワークスペースを読み込む (中身は ws_setup.bash)
+RUN echo 'source /opt/ws_setup.bash' >> ~/.bashrc
 
 # カラープロンプト: okarobo(蛍光オレンジ) 🤖 パス(蛍光水色) / 改行 / >(蛍光水色)
 # /bin/sh の echo は \n や \e を変換してしまうので printf '%s\n' でそのまま書き込む

@@ -30,6 +30,7 @@ cd ubuntu22-04-ros2-container
 ```
 
 clone したフォルダ全体がコンテナ内の `/ros2_ws/src/ubuntu22-04-ros2-container` にマウントされ、ここに置いたファイルはコンテナを消しても残ります。フォルダ名や置き場所は自由です。
+ワークスペース (`/ros2_ws` = `~/ws/ros2_ws` の build / install や、自分で作った `~/ws/<名前>_ws`) は、clone したフォルダの隣の `workspaces/` に保存されます (詳しくは [docs/DOCKER_GUIDE.md](docs/DOCKER_GUIDE.md) の 8 章)。
  (Windows は WSL2 側のフォルダに置くとファイル共有が速くなります。 このとき、Docker Desktopの Settings → Resources → WSL Integrationから、WSL2 でリポジトリをクローンしたディストリビューションをオンにしてください )。![alt text](image.png)
 
 ### 1-2. 起動 (イメージのビルド → コンテナをバックグラウンド起動)
@@ -185,7 +186,7 @@ ign topic -l                          # Gazebo 側のトピック一覧
 | 車体サイズ | 0.40 × 0.30 × 0.10 m、5 kg |
 | 車輪半径 / 幅 | 0.05 m / 0.04 m |
 | 車輪間距離 (wheel_separation) | 0.35 m |
-| 最大速度 | 並進 1.0 m/s、旋回 2.0 rad/s (`urdf/diffbot.gazebo.xacro` で変更可) |
+| 最大速度 | 制限なし (加速度のみ制限: 並進 1.0 m/s²、旋回 2.0 rad/s²。`urdf/diffbot.gazebo.xacro` で変更可) |
 | 3D LiDAR | 水平 360° / 360 点、垂直 ±15° / 16 ch、0.1 – 30 m、ノイズ σ=0.01 m |
 | 前方カメラ | 640×480、水平画角 80° |
 | 下向きカメラ | 320×240、水平画角 90° (床の約 0.16 m 幅が見える) |

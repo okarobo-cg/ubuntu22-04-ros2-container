@@ -36,15 +36,11 @@
       <child_frame_id>base_footprint</child_frame_id>
       <odom_publish_frequency>30</odom_publish_frequency>
 
-      <!-- 加速度・速度の制限 -->
+      <!-- 加速度の制限 (速度の上限は設けない) -->
       <max_linear_acceleration>1.0</max_linear_acceleration>
       <min_linear_acceleration>-1.0</min_linear_acceleration>
       <max_angular_acceleration>2.0</max_angular_acceleration>
       <min_angular_acceleration>-2.0</min_angular_acceleration>
-      <max_linear_velocity>1.0</max_linear_velocity>
-      <min_linear_velocity>-1.0</min_linear_velocity>
-      <max_angular_velocity>2.0</max_angular_velocity>
-      <min_angular_velocity>-2.0</min_angular_velocity>
     </plugin>
 
     <!-- 車輪の関節角度を publish (RViz で車輪が回るのに必要) -->

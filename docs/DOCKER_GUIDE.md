@@ -18,13 +18,16 @@ Docker に慣れていない人向けに、この環境を動かすのに必要�
 
 | 場所 | 消える? |
 |---|---|
-| `/ros2_ws/src/ubuntu22-04-ros2-container` | **残る** (ホストのフォルダと共有) |
-| `/ros2_ws/build`, `/ros2_ws/install`, `/ros2_ws/log` | 消える → `colcon build` し直せば OK |
+| `/ros2_ws/src/ubuntu22-04-ros2-container` | **残る** (clone したフォルダと共有) |
+| `~/ws` 以下 (`~/ws/ros2_ws` の build / install、自分で作った `~/ws/<名前>_ws`) | **残る** (ホストの `<リポジトリ>/../workspaces` と共有。Windows は名前付きボリューム `docker_okarobo_ws`) |
 | `apt install` で入れたソフト、`~/.bashrc` の変更 | 消える → **`docker/Dockerfile` に書く** |
+
+`/ros2_ws` は `~/ws/ros2_ws` (`/home/okarobo/ws/ros2_ws`) へのリンクなので、どちらのパスで作業しても同じです。
 
 つまり、
 
 - **自分で書くコード・設定は必ず clone したフォルダ (マウントされたフォルダ) の中に置く**
+- **他のパッケージは `~/ws/<名前>_ws` にワークスペースを作って入れる** (8 章)
 - **`apt install` したものは `docker/Dockerfile` にも追記する** (追記しないと他の人の環境で動かない)
 
 ---
@@ -161,8 +164,10 @@ docker run -it --name ubuntu_22_04_ros2 --net=host --ipc=host \
 
 ```bash
 # コンテナ内で (1000 は多くの Ubuntu で最初のユーザの UID。ホストで `id -u` で確認)
-sudo chown -R 1000:1000 /ros2_ws/src/ubuntu22-04-ros2-container
+sudo chown -R 1000:1000 ~/ws /ros2_ws/src/ubuntu22-04-ros2-container
 ```
+
+> ⚠️ **`colcon build` や `git clone` に `sudo` を付けない**でください。作られるファイルが root 所有になって、以後 `sudo` なしで書き込めなくなります。また `sudo` は `source` した ROS 2 の環境を引き継がないので、`ament_cmake_auto` が見つからないなどのエラーになります。`sudo` を使うのは `apt install` のときだけです。
 
 ### 同じネットワークで複数人が使う場合
 
@@ -310,3 +315,34 @@ docker compose -f docker-compose.yml -f docker-compose.wsl.yml up -d
 | Gazebo が `OGRE EXCEPTION(9:UnimplementedException) ... GL3PlusTextureGpu::copyTo` で落ちる | `MESA_GL_VERSION_OVERRIDE=4.3` が効いていない。コンテナ内で `echo $MESA_GL_VERSION_OVERRIDE` を確認 |
 | GPU 描画になっているか確認したい | コンテナ内で `glxinfo -B`。`OpenGL renderer string` が `D3D12 (...)` なら GPU、`llvmpipe` なら CPU 描画 |
 | GPU だと描画がおかしい | `docker-compose.wsl.yml` の environment に `- LIBGL_ALWAYS_SOFTWARE=1` を足すと CPU 描画になる (確実に動くが重い) |
+
+---
+
+## 8. ワークスペースを増やす
+
+ワークスペースはコンテナ内の `~/ws` (`/home/okarobo/ws`) にまとめて置きます。ホストの `<リポジトリ>/../workspaces` と共有しているので、コンテナを削除しても残ります (Windows は名前付きボリューム `docker_okarobo_ws` に保存)。中身は自分 (`okarobo`) の所有なので **`sudo` は不要**です。
+
+```
+~/ws/
+├── ros2_ws/      ← メイン (= /ros2_ws)。src/ubuntu22-04-ros2-container がこのリポジトリ
+└── <名前>_ws/    ← 好きに追加してよい
+```
+
+`~/.bashrc` (中身は `/opt/ws_setup.bash`) が新しい端末を開くたびに次の順で読み込みます。
+
+1. `/opt/ros/humble`
+2. `~/ws` 以下の `ros2_ws` 以外のワークスペース (名前順)
+3. `~/ws/ros2_ws` (最後 = 一番上の overlay)
+
+このため、ros2_ws のパッケージから他のワークスペースのパッケージをそのまま使えます。ビルドした直後は `source ~/.bashrc` するか、端末を開き直してください。
+
+### 新しいワークスペースを作る
+
+```bash
+mkdir -p ~/ws/foo_ws/src && cd ~/ws/foo_ws/src
+git clone <URL>
+cd ~/ws/foo_ws && colcon build --symlink-install
+source ~/.bashrc
+```
+
+> `start.sh` を使わずに `docker compose up` すると、`workspaces` フォルダが root 所有で作られることがあります。そのときはホストで `sudo chown -R $USER: <リポジトリ>/../workspaces` してください。

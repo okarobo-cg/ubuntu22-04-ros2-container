@@ -20,6 +20,11 @@ if [ -e /dev/dxg ]; then
   export COMPOSE_FILE=docker-compose.yml:docker-compose.wsl.yml
 fi
 
+# ワークスペース置き場 (コンテナの ~/ws)。自分の所有で先に作っておく
+export OKAROBO_WS_DIR="${OKAROBO_WS_DIR:-$(cd ../.. && pwd)/workspaces}"
+mkdir -p "$OKAROBO_WS_DIR/ros2_ws/src/ubuntu22-04-ros2-container"
+echo "      ワークスペース: $OKAROBO_WS_DIR (コンテナ内 ~/ws)"
+
 docker compose build
 docker compose up -d
 

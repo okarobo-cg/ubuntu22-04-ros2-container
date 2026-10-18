@@ -1,7 +1,9 @@
 # =============================================================
 #  diffbot_sim 用 docker compose 設定
 #
-#  このファイルはリポジトリの docker/ にある。リポジトリ全体を /ros2_ws/src/ubuntu22-04-ros2-container にマウントする。
+#  このファイルはリポジトリの docker/ にある。
+#  ホストの <リポジトリ>/../workspaces を ~/ws (/home/okarobo/ws) に、
+#  リポジトリ全体を ~/ws/ros2_ws/src/ubuntu22-04-ros2-container (= /ros2_ws/src/...) にマウントする。
 #
 #  通常は start.sh / shell.sh / stop.sh から使う。直接使う場合 (ホストで, このディレクトリに移動して):
 #    xhost +local:            # GUI 表示を許可 (ホスト再起動ごとに 1 回)
@@ -33,7 +35,11 @@ services:
       - QT_X11_NO_MITSHM=1
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw   # GUI (X11)
-      - ..:/ros2_ws/src/ubuntu22-04-ros2-container
+      # ワークスペース置き場 (ホストの <リポジトリ>/../workspaces)。build / install もここに残る。
+      # start.sh が中の ros2_ws/src などを先に作る (無いと root 所有で作られる)
+      - ${OKAROBO_WS_DIR:-../../workspaces}:/home/okarobo/ws
+      # リポジトリ (/ros2_ws は ~/ws/ros2_ws へのリンク)
+      - ..:/home/okarobo/ws/ros2_ws/src/ubuntu22-04-ros2-container
     # GPU (Intel / AMD) を使って描画を高速化する。
     # /dev/dri が無い PC ではこの 2 行をコメントアウトする (CPU 描画になるが動作はする)。
     # WSL2 では docker-compose.wsl.yml が /dev/dxg に差し替える。

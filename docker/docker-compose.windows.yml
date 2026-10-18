@@ -35,6 +35,12 @@ services:
       # WSLg (GUI)
       - /run/desktop/mnt/host/wslg/.X11-unix:/tmp/.X11-unix
       - /run/desktop/mnt/host/wslg:/mnt/wslg
-      # ソース (Linux 版と同じ)
-      - ..:/ros2_ws/src/ubuntu22-04-ros2-container
+      # ワークスペース置き場。Windows のフォルダは遅く、colcon の --symlink-install も
+      # うまく動かないことがあるので、Docker の名前付きボリュームに置く (stop -Remove でも消えない)
+      - okarobo_ws:/home/okarobo/ws
+      # ソース (Linux 版と同じ。/ros2_ws は ~/ws/ros2_ws へのリンク)
+      - ..:/home/okarobo/ws/ros2_ws/src/ubuntu22-04-ros2-container
     command: bash
+
+volumes:
+  okarobo_ws:
